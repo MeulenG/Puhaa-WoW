@@ -1,0 +1,66 @@
+#pragma once
+
+#include "game/game_handler.hpp"
+#include <imgui.h>
+#include <string>
+#include <functional>
+
+namespace wowee { namespace ui {
+
+/**
+ * Character selection screen UI
+ *
+ * Displays character list and allows user to select one to play
+ */
+class CharacterScreen {
+public:
+    CharacterScreen();
+
+    /**
+     * Render the UI
+     * @param gameHandler Reference to game handler
+     */
+    void render(game::GameHandler& gameHandler);
+
+    /**
+     * Set callback for character selection
+     * @param callback Function to call when character is selected (receives character GUID)
+     */
+    void setOnCharacterSelected(std::function<void(uint64_t)> callback) {
+        onCharacterSelected = callback;
+    }
+
+    /**
+     * Check if a character has been selected
+     */
+    bool hasSelection() const { return characterSelected; }
+
+    /**
+     * Get selected character GUID
+     */
+    uint64_t getSelectedGuid() const { return selectedCharacterGuid; }
+
+private:
+    // UI state
+    int selectedCharacterIndex = -1;
+    bool characterSelected = false;
+    uint64_t selectedCharacterGuid = 0;
+
+    // Status
+    std::string statusMessage;
+
+    // Callbacks
+    std::function<void(uint64_t)> onCharacterSelected;
+
+    /**
+     * Update status message
+     */
+    void setStatus(const std::string& message);
+
+    /**
+     * Get faction color based on race
+     */
+    ImVec4 getFactionColor(game::Race race) const;
+};
+
+}} // namespace wowee::ui

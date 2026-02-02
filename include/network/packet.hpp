@@ -1,0 +1,43 @@
+#pragma once
+
+#include <vector>
+#include <cstdint>
+#include <string>
+
+namespace wowee {
+namespace network {
+
+class Packet {
+public:
+    Packet() = default;
+    explicit Packet(uint16_t opcode);
+    Packet(uint16_t opcode, const std::vector<uint8_t>& data);
+
+    void writeUInt8(uint8_t value);
+    void writeUInt16(uint16_t value);
+    void writeUInt32(uint32_t value);
+    void writeUInt64(uint64_t value);
+    void writeString(const std::string& value);
+    void writeBytes(const uint8_t* data, size_t length);
+
+    uint8_t readUInt8();
+    uint16_t readUInt16();
+    uint32_t readUInt32();
+    uint64_t readUInt64();
+    float readFloat();
+    std::string readString();
+
+    uint16_t getOpcode() const { return opcode; }
+    const std::vector<uint8_t>& getData() const { return data; }
+    size_t getReadPos() const { return readPos; }
+    size_t getSize() const { return data.size(); }
+    void setReadPos(size_t pos) { readPos = pos; }
+
+private:
+    uint16_t opcode = 0;
+    std::vector<uint8_t> data;
+    size_t readPos = 0;
+};
+
+} // namespace network
+} // namespace wowee

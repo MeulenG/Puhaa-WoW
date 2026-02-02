@@ -1,0 +1,72 @@
+#pragma once
+
+#include "auth/auth_handler.hpp"
+#include <string>
+#include <functional>
+
+namespace wowee { namespace ui {
+
+/**
+ * Authentication screen UI
+ *
+ * Allows user to enter credentials and connect to auth server
+ */
+class AuthScreen {
+public:
+    AuthScreen();
+
+    /**
+     * Render the UI
+     * @param authHandler Reference to auth handler
+     */
+    void render(auth::AuthHandler& authHandler);
+
+    /**
+     * Set callback for successful authentication
+     */
+    void setOnSuccess(std::function<void()> callback) { onSuccess = callback; }
+
+    /**
+     * Set callback for single-player mode
+     */
+    void setOnSinglePlayer(std::function<void()> callback) { onSinglePlayer = callback; }
+
+    /**
+     * Check if authentication is in progress
+     */
+    bool isAuthenticating() const { return authenticating; }
+
+    /**
+     * Get status message
+     */
+    const std::string& getStatusMessage() const { return statusMessage; }
+
+private:
+    // UI state
+    char hostname[256] = "127.0.0.1";
+    char username[256] = "";
+    char password[256] = "";
+    int port = 3724;
+    bool authenticating = false;
+    bool showPassword = false;
+
+    // Status
+    std::string statusMessage;
+    bool statusIsError = false;
+
+    // Callbacks
+    std::function<void()> onSuccess;
+    std::function<void()> onSinglePlayer;
+
+    /**
+     * Attempt authentication
+     */
+    void attemptAuth(auth::AuthHandler& authHandler);
+
+    /**
+     * Update status message
+     */
+    void setStatus(const std::string& message, bool isError = false);
+};
+
+}} // namespace wowee::ui

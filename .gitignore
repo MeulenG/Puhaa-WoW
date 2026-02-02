@@ -1,0 +1,63 @@
+# Build directories
+build/
+bin/
+lib/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled Object files
+*.o
+*.obj
+*.slo
+*.lo
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+*.la
+
+# Executables
+*.exe
+*.out
+*.app
+wowee
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# External dependencies (except CMakeLists.txt)
+extern/*
+!extern/.gitkeep
+
+# ImGui state
+imgui.ini
+
+# Logs
+*.log
+
+# Config files
+config.ini
+config.json
+
+# WoW data (users must supply their own)
+Data/
+*.mpq
+
+# Texture assets (not distributed - see README)
+assets/textures/

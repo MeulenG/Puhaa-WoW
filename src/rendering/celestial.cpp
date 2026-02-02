@@ -1,0 +1,412 @@
+#include "rendering/celestial.hpp"
+#include "rendering/shader.hpp"
+#include "rendering/camera.hpp"
+#include "core/logger.hpp"
+#include <GL/glew.h>
+#include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
+
+namespace wowee {
+namespace rendering {
+
+Celestial::Celestial() = default;
+
+Celestial::~Celestial() {
+    shutdown();
+}
+
+bool Celestial::initialize() {
+    LOG_INFO("Initializing celestial renderer");
+
+    // Create celestial shader
+    celestialShader = std::make_unique<Shader>();
+
+    // Vertex shader - billboard facing camera
+    const char* vertexShaderSource = R"(
+        #version 330 core
+        layout (location = 0) in vec3 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
+
+        out vec2 TexCoord;
+
+        void main() {
+            TexCoord = aTexCoord;
+
+            // Billboard: remove rotation from view matrix, keep only translation
+            mat4 viewNoRotation = view;
+            viewNoRotation[0][0] = 1.0; viewNoRotation[0][1] = 0.0; viewNoRotation[0][2] = 0.0;
+            viewNoRotation[1][0] = 0.0; viewNoRotation[1][1] = 1.0; viewNoRotation[1][2] = 0.0;
+            viewNoRotation[2][0] = 0.0; viewNoRotation[2][1] = 0.0; viewNoRotation[2][2] = 1.0;
+
+            gl_Position = projection * viewNoRotation * model * vec4(aPos, 1.0);
+        }
+    )";
+
+    // Fragment shader - disc with glow and moon phase support
+    const char* fragmentShaderSource = R"(
+        #version 330 core
+        in vec2 TexCoord;
+
+        uniform vec3 celestialColor;
+        uniform float intensity;
+        uniform float moonPhase;  // 0.0 = new moon, 0.5 = full moon, 1.0 = new moon
+
+        out vec4 FragColor;
+
+        void main() {
+            // Create circular disc
+            vec2 center = vec2(0.5, 0.5);
+            float dist = distance(TexCoord, center);
+
+            // Core disc
+            float disc = smoothstep(0.5, 0.4, dist);
+
+            // Glow around disc
+            float glow = smoothstep(0.7, 0.0, dist) * 0.3;
+
+            float alpha = (disc + glow) * intensity;
+
+            // Apply moon phase shadow (only for moon, indicated by low intensity)
+            if (intensity < 0.5) {  // Moon has lower intensity than sun
+                // Calculate phase position (-1 to 1, where 0 is center)
+                float phasePos = (moonPhase - 0.5) * 2.0;
+
+                // Distance from phase terminator line
+                float x = (TexCoord.x - 0.5) * 2.0;  // -1 to 1
+
+                // Create shadow using smoothstep
+                float shadow = 1.0;
+
+                if (moonPhase < 0.5) {
+                    // Waning (right to left shadow)
+                    shadow = smoothstep(phasePos - 0.1, phasePos + 0.1, x);
+                } else {
+                    // Waxing (left to right shadow)
+                    shadow = smoothstep(phasePos - 0.1, phasePos + 0.1, -x);
+                }
+
+                // Apply elliptical terminator for 3D effect
+                float y = (TexCoord.y - 0.5) * 2.0;
+                float ellipse = sqrt(1.0 - y * y);
+                float terminatorX = phasePos / ellipse;
+
+                if (moonPhase < 0.5) {
+                    shadow = smoothstep(terminatorX - 0.15, terminatorX + 0.15, x);
+                } else {
+                    shadow = smoothstep(terminatorX - 0.15, terminatorX + 0.15, -x);
+                }
+
+                // Darken shadowed area (not completely black, slight glow remains)
+                alpha *= mix(0.05, 1.0, shadow);
+            }
+
+            FragColor = vec4(celestialColor, alpha);
+        }
+    )";
+
+    if (!celestialShader->loadFromSource(vertexShaderSource, fragmentShaderSource)) {
+        LOG_ERROR("Failed to create celestial shader");
+        return false;
+    }
+
+    // Create billboard quad
+    createCelestialQuad();
+
+    LOG_INFO("Celestial renderer initialized");
+    return true;
+}
+
+void Celestial::shutdown() {
+    destroyCelestialQuad();
+    celestialShader.reset();
+}
+
+void Celestial::render(const Camera& camera, float timeOfDay) {
+    if (!renderingEnabled || vao == 0 || !celestialShader) {
+        return;
+    }
+
+    // Enable blending for celestial glow
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Disable depth writing (but keep depth testing)
+    glDepthMask(GL_FALSE);
+
+    // Render sun and moon
+    renderSun(camera, timeOfDay);
+    renderMoon(camera, timeOfDay);
+
+    // Restore state
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
+void Celestial::renderSun(const Camera& camera, float timeOfDay) {
+    // Sun visible from 5:00 to 19:00
+    if (timeOfDay < 5.0f || timeOfDay >= 19.0f) {
+        return;
+    }
+
+    celestialShader->use();
+
+    // Get sun position
+    glm::vec3 sunPos = getSunPosition(timeOfDay);
+
+    // Create model matrix
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, sunPos);
+    model = glm::scale(model, glm::vec3(50.0f, 50.0f, 1.0f));  // 50 unit diameter
+
+    // Set uniforms
+    glm::mat4 view = camera.getViewMatrix();
+    glm::mat4 projection = camera.getProjectionMatrix();
+
+    celestialShader->setUniform("model", model);
+    celestialShader->setUniform("view", view);
+    celestialShader->setUniform("projection", projection);
+
+    // Sun color and intensity
+    glm::vec3 color = getSunColor(timeOfDay);
+    float intensity = getSunIntensity(timeOfDay);
+
+    celestialShader->setUniform("celestialColor", color);
+    celestialShader->setUniform("intensity", intensity);
+    celestialShader->setUniform("moonPhase", 0.5f);  // Sun doesn't use this, but shader expects it
+
+    // Render quad
+    glBindVertexArray(vao);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+}
+
+void Celestial::renderMoon(const Camera& camera, float timeOfDay) {
+    // Moon visible from 19:00 to 5:00 (night)
+    if (timeOfDay >= 5.0f && timeOfDay < 19.0f) {
+        return;
+    }
+
+    celestialShader->use();
+
+    // Get moon position
+    glm::vec3 moonPos = getMoonPosition(timeOfDay);
+
+    // Create model matrix
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, moonPos);
+    model = glm::scale(model, glm::vec3(40.0f, 40.0f, 1.0f));  // 40 unit diameter (smaller than sun)
+
+    // Set uniforms
+    glm::mat4 view = camera.getViewMatrix();
+    glm::mat4 projection = camera.getProjectionMatrix();
+
+    celestialShader->setUniform("model", model);
+    celestialShader->setUniform("view", view);
+    celestialShader->setUniform("projection", projection);
+
+    // Moon color (pale blue-white) and intensity
+    glm::vec3 color = glm::vec3(0.8f, 0.85f, 1.0f);
+
+    // Fade in/out at transitions
+    float intensity = 1.0f;
+    if (timeOfDay >= 19.0f && timeOfDay < 21.0f) {
+        // Fade in (19:00-21:00)
+        intensity = (timeOfDay - 19.0f) / 2.0f;
+    }
+    else if (timeOfDay >= 3.0f && timeOfDay < 5.0f) {
+        // Fade out (3:00-5:00)
+        intensity = 1.0f - (timeOfDay - 3.0f) / 2.0f;
+    }
+
+    celestialShader->setUniform("celestialColor", color);
+    celestialShader->setUniform("intensity", intensity);
+    celestialShader->setUniform("moonPhase", moonPhase);
+
+    // Render quad
+    glBindVertexArray(vao);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+}
+
+glm::vec3 Celestial::getSunPosition(float timeOfDay) const {
+    // Sun rises at 6:00, peaks at 12:00, sets at 18:00
+    float angle = calculateCelestialAngle(timeOfDay, 6.0f, 18.0f);
+
+    const float radius = 800.0f;  // Distance from origin
+    const float height = 600.0f;  // Maximum height
+
+    // Arc across sky
+    float x = radius * std::sin(angle);
+    float z = height * std::cos(angle);
+    float y = 0.0f;  // Y is horizontal in WoW coordinates
+
+    return glm::vec3(x, y, z);
+}
+
+glm::vec3 Celestial::getMoonPosition(float timeOfDay) const {
+    // Moon rises at 18:00, peaks at 0:00 (24:00), sets at 6:00
+    // Adjust time for moon (opposite to sun)
+    float moonTime = timeOfDay + 12.0f;
+    if (moonTime >= 24.0f) moonTime -= 24.0f;
+
+    float angle = calculateCelestialAngle(moonTime, 6.0f, 18.0f);
+
+    const float radius = 800.0f;
+    const float height = 600.0f;
+
+    float x = radius * std::sin(angle);
+    float z = height * std::cos(angle);
+    float y = 0.0f;
+
+    return glm::vec3(x, y, z);
+}
+
+glm::vec3 Celestial::getSunColor(float timeOfDay) const {
+    // Sunrise/sunset: orange/red
+    // Midday: bright yellow-white
+
+    if (timeOfDay >= 5.0f && timeOfDay < 7.0f) {
+        // Sunrise: orange
+        return glm::vec3(1.0f, 0.6f, 0.2f);
+    }
+    else if (timeOfDay >= 7.0f && timeOfDay < 9.0f) {
+        // Morning: blend to yellow
+        float t = (timeOfDay - 7.0f) / 2.0f;
+        glm::vec3 orange = glm::vec3(1.0f, 0.6f, 0.2f);
+        glm::vec3 yellow = glm::vec3(1.0f, 1.0f, 0.9f);
+        return glm::mix(orange, yellow, t);
+    }
+    else if (timeOfDay >= 9.0f && timeOfDay < 16.0f) {
+        // Day: bright yellow-white
+        return glm::vec3(1.0f, 1.0f, 0.9f);
+    }
+    else if (timeOfDay >= 16.0f && timeOfDay < 18.0f) {
+        // Evening: blend to orange
+        float t = (timeOfDay - 16.0f) / 2.0f;
+        glm::vec3 yellow = glm::vec3(1.0f, 1.0f, 0.9f);
+        glm::vec3 orange = glm::vec3(1.0f, 0.5f, 0.1f);
+        return glm::mix(yellow, orange, t);
+    }
+    else {
+        // Sunset: deep orange/red
+        return glm::vec3(1.0f, 0.4f, 0.1f);
+    }
+}
+
+float Celestial::getSunIntensity(float timeOfDay) const {
+    // Fade in at sunrise (5:00-6:00)
+    if (timeOfDay >= 5.0f && timeOfDay < 6.0f) {
+        return (timeOfDay - 5.0f);  // 0 to 1
+    }
+    // Full intensity during day (6:00-18:00)
+    else if (timeOfDay >= 6.0f && timeOfDay < 18.0f) {
+        return 1.0f;
+    }
+    // Fade out at sunset (18:00-19:00)
+    else if (timeOfDay >= 18.0f && timeOfDay < 19.0f) {
+        return 1.0f - (timeOfDay - 18.0f);  // 1 to 0
+    }
+    else {
+        return 0.0f;
+    }
+}
+
+float Celestial::calculateCelestialAngle(float timeOfDay, float riseTime, float setTime) const {
+    // Map time to angle (0 to PI)
+    // riseTime: 0 radians (horizon east)
+    // (riseTime + setTime) / 2: PI/2 radians (zenith)
+    // setTime: PI radians (horizon west)
+
+    float duration = setTime - riseTime;
+    float elapsed = timeOfDay - riseTime;
+
+    // Normalize to 0-1
+    float t = elapsed / duration;
+
+    // Map to 0 to PI (arc from east to west)
+    return t * M_PI;
+}
+
+void Celestial::createCelestialQuad() {
+    // Simple quad centered at origin
+    float vertices[] = {
+        // Position         // TexCoord
+        -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,  // Top-left
+         0.5f,  0.5f, 0.0f,  1.0f, 1.0f,  // Top-right
+         0.5f, -0.5f, 0.0f,  1.0f, 0.0f,  // Bottom-right
+        -0.5f, -0.5f, 0.0f,  0.0f, 0.0f   // Bottom-left
+    };
+
+    uint32_t indices[] = {
+        0, 1, 2,  // First triangle
+        0, 2, 3   // Second triangle
+    };
+
+    // Create OpenGL buffers
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+
+    glBindVertexArray(vao);
+
+    // Upload vertex data
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Upload index data
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Set vertex attributes
+    // Position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Texture coordinates
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+}
+
+void Celestial::destroyCelestialQuad() {
+    if (vao != 0) {
+        glDeleteVertexArrays(1, &vao);
+        vao = 0;
+    }
+    if (vbo != 0) {
+        glDeleteBuffers(1, &vbo);
+        vbo = 0;
+    }
+    if (ebo != 0) {
+        glDeleteBuffers(1, &ebo);
+        ebo = 0;
+    }
+}
+
+void Celestial::update(float deltaTime) {
+    if (!moonPhaseCycling) {
+        return;
+    }
+
+    // Update moon phase timer
+    moonPhaseTimer += deltaTime;
+
+    // Moon completes full cycle in MOON_CYCLE_DURATION seconds
+    moonPhase = std::fmod(moonPhaseTimer / MOON_CYCLE_DURATION, 1.0f);
+}
+
+void Celestial::setMoonPhase(float phase) {
+    // Clamp phase to 0.0-1.0
+    moonPhase = glm::clamp(phase, 0.0f, 1.0f);
+
+    // Update timer to match phase
+    moonPhaseTimer = moonPhase * MOON_CYCLE_DURATION;
+}
+
+} // namespace rendering
+} // namespace wowee

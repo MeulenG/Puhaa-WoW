@@ -1,0 +1,145 @@
+#pragma once
+
+#include "pipeline/m2_loader.hpp"
+#include <GL/glew.h>
+#include <glm/glm.hpp>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+#include <string>
+
+namespace wowee {
+
+namespace pipeline {
+    class AssetManager;
+}
+
+namespace rendering {
+
+class Shader;
+class Camera;
+
+/**
+ * GPU representation of an M2 model
+ */
+struct M2ModelGPU {
+    struct BatchGPU {
+        GLuint texture = 0;
+        uint32_t indexStart = 0;   // offset in indices (not bytes)
+        uint32_t indexCount = 0;
+        bool hasAlpha = false;
+    };
+
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    GLuint ebo = 0;
+    uint32_t indexCount = 0;
+    uint32_t vertexCount = 0;
+    std::vector<BatchGPU> batches;
+
+    glm::vec3 boundMin;
+    glm::vec3 boundMax;
+    float boundRadius = 0.0f;
+
+    std::string name;
+
+    bool isValid() const { return vao != 0 && indexCount > 0; }
+};
+
+/**
+ * Instance of an M2 model in the world
+ */
+struct M2Instance {
+    uint32_t id = 0;     // Unique instance ID
+    uint32_t modelId;
+    glm::vec3 position;
+    glm::vec3 rotation;  // Euler angles in degrees
+    float scale;
+    glm::mat4 modelMatrix;
+
+    void updateModelMatrix();
+};
+
+/**
+ * M2 Model Renderer
+ *
+ * Handles rendering of M2 models (doodads like trees, rocks, bushes)
+ */
+class M2Renderer {
+public:
+    M2Renderer();
+    ~M2Renderer();
+
+    bool initialize(pipeline::AssetManager* assets);
+    void shutdown();
+
+    /**
+     * Load an M2 model to GPU
+     * @param model Parsed M2 model data
+     * @param modelId Unique ID for this model
+     * @return True if successful
+     */
+    bool loadModel(const pipeline::M2Model& model, uint32_t modelId);
+
+    /**
+     * Create an instance of a loaded model
+     * @param modelId ID of the loaded model
+     * @param position World position
+     * @param rotation Rotation in degrees (x, y, z)
+     * @param scale Scale factor (1.0 = normal)
+     * @return Instance ID
+     */
+    uint32_t createInstance(uint32_t modelId, const glm::vec3& position,
+                            const glm::vec3& rotation = glm::vec3(0.0f),
+                            float scale = 1.0f);
+
+    /**
+     * Create an instance with a pre-computed model matrix
+     * Used for WMO doodads where the full transform is computed externally
+     */
+    uint32_t createInstanceWithMatrix(uint32_t modelId, const glm::mat4& modelMatrix,
+                                       const glm::vec3& position);
+
+    /**
+     * Render all visible instances
+     */
+    void render(const Camera& camera, const glm::mat4& view, const glm::mat4& projection);
+
+    /**
+     * Remove a specific instance by ID
+     * @param instanceId Instance ID returned by createInstance()
+     */
+    void removeInstance(uint32_t instanceId);
+
+    /**
+     * Clear all models and instances
+     */
+    void clear();
+
+    // Stats
+    uint32_t getModelCount() const { return static_cast<uint32_t>(models.size()); }
+    uint32_t getInstanceCount() const { return static_cast<uint32_t>(instances.size()); }
+    uint32_t getTotalTriangleCount() const;
+    uint32_t getDrawCallCount() const { return lastDrawCallCount; }
+
+private:
+    pipeline::AssetManager* assetManager = nullptr;
+    std::unique_ptr<Shader> shader;
+
+    std::unordered_map<uint32_t, M2ModelGPU> models;
+    std::vector<M2Instance> instances;
+
+    uint32_t nextInstanceId = 1;
+    uint32_t lastDrawCallCount = 0;
+
+    GLuint loadTexture(const std::string& path);
+    std::unordered_map<std::string, GLuint> textureCache;
+    GLuint whiteTexture = 0;
+
+    // Lighting uniforms
+    glm::vec3 lightDir = glm::vec3(0.5f, 0.5f, 1.0f);
+    glm::vec3 ambientColor = glm::vec3(0.4f, 0.4f, 0.45f);
+};
+
+} // namespace rendering
+} // namespace wowee

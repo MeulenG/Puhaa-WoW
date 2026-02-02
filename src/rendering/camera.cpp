@@ -1,0 +1,56 @@
+#include "rendering/camera.hpp"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/constants.hpp>
+
+namespace wowee {
+namespace rendering {
+
+Camera::Camera() {
+    updateViewMatrix();
+    updateProjectionMatrix();
+}
+
+void Camera::updateViewMatrix() {
+    glm::vec3 front = getForward();
+    // Use Z-up for WoW coordinate system
+    viewMatrix = glm::lookAt(position, position + front, glm::vec3(0.0f, 0.0f, 1.0f));
+}
+
+void Camera::updateProjectionMatrix() {
+    projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
+}
+
+glm::vec3 Camera::getForward() const {
+    // WoW coordinate system: X/Y horizontal, Z vertical
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.z = sin(glm::radians(pitch));
+    return glm::normalize(front);
+}
+
+glm::vec3 Camera::getRight() const {
+    // Use Z-up for WoW coordinate system
+    return glm::normalize(glm::cross(getForward(), glm::vec3(0.0f, 0.0f, 1.0f)));
+}
+
+glm::vec3 Camera::getUp() const {
+    return glm::normalize(glm::cross(getRight(), getForward()));
+}
+
+Ray Camera::screenToWorldRay(float screenX, float screenY, float screenW, float screenH) const {
+    float ndcX = (2.0f * screenX / screenW) - 1.0f;
+    float ndcY = 1.0f - (2.0f * screenY / screenH);
+
+    glm::mat4 invVP = glm::inverse(projectionMatrix * viewMatrix);
+
+    glm::vec4 nearPt = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
+    glm::vec4 farPt  = invVP * glm::vec4(ndcX, ndcY,  1.0f, 1.0f);
+    nearPt /= nearPt.w;
+    farPt  /= farPt.w;
+
+    return { glm::vec3(nearPt), glm::normalize(glm::vec3(farPt - nearPt)) };
+}
+
+} // namespace rendering
+} // namespace wowee
