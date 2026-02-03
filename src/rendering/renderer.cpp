@@ -569,6 +569,11 @@ void Renderer::update(float deltaTime) {
         characterRenderer->update(deltaTime);
     }
 
+    // Update M2 doodad animations
+    if (m2Renderer) {
+        m2Renderer->update(deltaTime);
+    }
+
     // Update zone detection and music
     if (zoneManager && musicManager && terrainManager && camera) {
         // First check tile-based zone

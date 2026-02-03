@@ -85,7 +85,9 @@ private:
     // Gravity / grounding
     float verticalVelocity = 0.0f;
     bool grounded = false;
-    float eyeHeight = 1.8f;  // WoW human eye height (~2 yard tall character)
+    static constexpr float STAND_EYE_HEIGHT = 1.2f;  // Standing eye height
+    static constexpr float CROUCH_EYE_HEIGHT = 0.6f; // Crouching eye height
+    float eyeHeight = STAND_EYE_HEIGHT;
     float lastGroundZ = 0.0f;  // Last known ground height (fallback when no terrain)
     static constexpr float GRAVITY = -30.0f;
     static constexpr float JUMP_VELOCITY = 15.0f;
@@ -115,11 +117,12 @@ private:
     // Movement callback
     MovementCallback movementCallback;
 
-    // Movement speeds (scaled up for better feel)
+    // Movement speeds
     bool useWoWSpeed = false;
-    static constexpr float WOW_RUN_SPEED = 14.0f;   // Double base WoW speed for responsiveness
-    static constexpr float WOW_WALK_SPEED = 5.0f;   // Walk (hold Shift)
-    static constexpr float WOW_BACK_SPEED = 9.0f;   // Backpedal
+    static constexpr float WOW_RUN_SPEED = 14.0f;    // Normal run (WASD)
+    static constexpr float WOW_SPRINT_SPEED = 28.0f; // Sprint (hold Shift)
+    static constexpr float WOW_WALK_SPEED = 5.0f;    // Walk (hold Ctrl)
+    static constexpr float WOW_BACK_SPEED = 9.0f;    // Backpedal
     static constexpr float WOW_GRAVITY = -19.29f;
     static constexpr float WOW_JUMP_VELOCITY = 7.96f;
 

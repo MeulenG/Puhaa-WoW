@@ -41,13 +41,15 @@ void CameraController::update(float deltaTime) {
     // Calculate movement speed based on direction and modifiers
     float speed;
     if (useWoWSpeed) {
-        // WoW-correct speeds
+        // Movement speeds (Shift = sprint, Ctrl = walk)
         if (nowBackward && !nowForward) {
             speed = WOW_BACK_SPEED;
         } else if (!uiWantsKeyboard && (input.isKeyPressed(SDL_SCANCODE_LSHIFT) || input.isKeyPressed(SDL_SCANCODE_RSHIFT))) {
-            speed = WOW_WALK_SPEED;  // Shift = walk in WoW mode
+            speed = WOW_SPRINT_SPEED;  // Shift = sprint (faster)
+        } else if (!uiWantsKeyboard && (input.isKeyPressed(SDL_SCANCODE_LCTRL) || input.isKeyPressed(SDL_SCANCODE_RCTRL))) {
+            speed = WOW_WALK_SPEED;    // Ctrl = walk (slower)
         } else {
-            speed = WOW_RUN_SPEED;
+            speed = WOW_RUN_SPEED;     // Normal run
         }
     } else {
         // Exploration mode (original behavior)
@@ -69,12 +71,17 @@ void CameraController::update(float deltaTime) {
         right = glm::normalize(right);
     }
 
-    // Toggle sit with X key (edge-triggered) — only when UI doesn't want keyboard
-    bool xDown = !uiWantsKeyboard && input.isKeyPressed(SDL_SCANCODE_X);
+    // Toggle sit/crouch with X or C key (edge-triggered) — only when UI doesn't want keyboard
+    bool xDown = !uiWantsKeyboard && (input.isKeyPressed(SDL_SCANCODE_X) || input.isKeyPressed(SDL_SCANCODE_C));
     if (xDown && !xKeyWasDown) {
         sitting = !sitting;
     }
     xKeyWasDown = xDown;
+
+    // Update eye height based on crouch state (smooth transition)
+    float targetEyeHeight = sitting ? CROUCH_EYE_HEIGHT : STAND_EYE_HEIGHT;
+    float heightLerpSpeed = 10.0f * deltaTime;
+    eyeHeight = eyeHeight + (targetEyeHeight - eyeHeight) * std::min(1.0f, heightLerpSpeed);
 
     // Calculate horizontal movement vector
     glm::vec3 movement(0.0f);
@@ -84,10 +91,8 @@ void CameraController::update(float deltaTime) {
     if (nowStrafeLeft) movement -= right;
     if (nowStrafeRight) movement += right;
 
-    // Stand up if any movement key is pressed while sitting
-    if (!uiWantsKeyboard && sitting && (input.isKeyPressed(SDL_SCANCODE_W) || input.isKeyPressed(SDL_SCANCODE_S) ||
-                    input.isKeyPressed(SDL_SCANCODE_A) || input.isKeyPressed(SDL_SCANCODE_D) ||
-                    input.isKeyPressed(SDL_SCANCODE_SPACE))) {
+    // Stand up if jumping while crouched
+    if (!uiWantsKeyboard && sitting && input.isKeyPressed(SDL_SCANCODE_SPACE)) {
         sitting = false;
     }
 

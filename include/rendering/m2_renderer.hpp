@@ -57,6 +57,11 @@ struct M2Instance {
     float scale;
     glm::mat4 modelMatrix;
 
+    // Animation state
+    float animTime = 0.0f;       // Current animation time
+    float animSpeed = 1.0f;      // Animation playback speed
+    uint32_t animId = 0;         // Current animation sequence
+
     void updateModelMatrix();
 };
 
@@ -99,6 +104,12 @@ public:
      */
     uint32_t createInstanceWithMatrix(uint32_t modelId, const glm::mat4& modelMatrix,
                                        const glm::vec3& position);
+
+    /**
+     * Update animation state for all instances
+     * @param deltaTime Time since last frame
+     */
+    void update(float deltaTime);
 
     /**
      * Render all visible instances

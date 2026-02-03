@@ -37,7 +37,7 @@ bool M2Renderer::initialize(pipeline::AssetManager* assets) {
 
     LOG_INFO("Initializing M2 renderer...");
 
-    // Create M2 shader
+    // Create M2 shader with simple animation support
     const char* vertexSrc = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
@@ -47,15 +47,27 @@ bool M2Renderer::initialize(pipeline::AssetManager* assets) {
         uniform mat4 uModel;
         uniform mat4 uView;
         uniform mat4 uProjection;
+        uniform float uTime;
+        uniform float uAnimScale;  // 0 = no animation, 1 = full animation
 
         out vec3 FragPos;
         out vec3 Normal;
         out vec2 TexCoord;
 
         void main() {
-            vec4 worldPos = uModel * vec4(aPos, 1.0);
+            vec3 pos = aPos;
+
+            // Simple swaying animation for vegetation/doodads
+            // Only animate vertices above ground level (positive Y in model space)
+            if (uAnimScale > 0.0 && pos.z > 0.5) {
+                float sway = sin(uTime * 2.0 + pos.x * 0.5 + pos.y * 0.3) * 0.1;
+                float heightFactor = clamp((pos.z - 0.5) / 3.0, 0.0, 1.0);
+                pos.x += sway * heightFactor * uAnimScale;
+                pos.y += sway * 0.5 * heightFactor * uAnimScale;
+            }
+
+            vec4 worldPos = uModel * vec4(pos, 1.0);
             FragPos = worldPos.xyz;
-            // Use mat3(uModel) directly - avoids expensive inverse() per vertex
             Normal = mat3(uModel) * aNormal;
             TexCoord = aTexCoord;
 
@@ -302,10 +314,18 @@ uint32_t M2Renderer::createInstanceWithMatrix(uint32_t modelId, const glm::mat4&
     instance.rotation = glm::vec3(0.0f);
     instance.scale = 1.0f;
     instance.modelMatrix = modelMatrix;
+    instance.animTime = static_cast<float>(rand()) / RAND_MAX * 10.0f;  // Random start time
 
     instances.push_back(instance);
 
     return instance.id;
+}
+
+void M2Renderer::update(float deltaTime) {
+    // Advance animation time for all instances
+    for (auto& instance : instances) {
+        instance.animTime += deltaTime * instance.animSpeed;
+    }
 }
 
 void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::mat4& projection) {
@@ -371,6 +391,8 @@ void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::
         }
 
         shader->setUniform("uModel", instance.modelMatrix);
+        shader->setUniform("uTime", instance.animTime);
+        shader->setUniform("uAnimScale", 1.0f);  // Enable animation for all M2s
 
         glBindVertexArray(model.vao);
 
