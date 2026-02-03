@@ -47,7 +47,7 @@ Application::~Application() {
 }
 
 bool Application::initialize() {
-    LOG_INFO("Initializing Wowser Native Client");
+    LOG_INFO("Initializing Wowee Native Client");
 
     // Create window
     WindowConfig windowConfig;

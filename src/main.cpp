@@ -5,7 +5,7 @@
 int main(int argc, char* argv[]) {
     try {
         wowee::core::Logger::getInstance().setLogLevel(wowee::core::LogLevel::DEBUG);
-        LOG_INFO("=== Wowser Native Client ===");
+        LOG_INFO("=== Wowee Native Client ===");
         LOG_INFO("Starting application...");
 
         wowee::core::Application app;

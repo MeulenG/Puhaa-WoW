@@ -8,7 +8,7 @@ namespace wowee {
 namespace core {
 
 struct WindowConfig {
-    std::string title = "Wowser Native";
+    std::string title = "Wowee Native";
     int width = 1920;
     int height = 1080;
     bool fullscreen = false;
