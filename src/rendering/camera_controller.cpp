@@ -32,6 +32,20 @@ std::optional<float> selectReachableFloor(const std::optional<float>& terrainH,
     return best;
 }
 
+std::optional<float> selectHighestFloor(const std::optional<float>& a,
+                                        const std::optional<float>& b,
+                                        const std::optional<float>& c) {
+    std::optional<float> best;
+    auto consider = [&](const std::optional<float>& h) {
+        if (!h) return;
+        if (!best || *h > *best) best = *h;
+    };
+    consider(a);
+    consider(b);
+    consider(c);
+    return best;
+}
+
 } // namespace
 
 CameraController::CameraController(Camera* cam) : camera(cam) {
@@ -182,8 +196,19 @@ void CameraController::update(float deltaTime) {
             waterH = waterRenderer->getWaterHeightAt(targetPos.x, targetPos.y);
         }
         constexpr float MAX_SWIM_DEPTH_FROM_SURFACE = 12.0f;
-        bool inWater = waterH && targetPos.z < *waterH &&
-                       ((*waterH - targetPos.z) <= MAX_SWIM_DEPTH_FROM_SURFACE);
+        bool inWater = false;
+        if (waterH && targetPos.z < *waterH &&
+            ((*waterH - targetPos.z) <= MAX_SWIM_DEPTH_FROM_SURFACE)) {
+            std::optional<float> terrainH;
+            std::optional<float> wmoH;
+            std::optional<float> m2H;
+            if (terrainManager) terrainH = terrainManager->getHeightAt(targetPos.x, targetPos.y);
+            if (wmoRenderer) wmoH = wmoRenderer->getFloorHeight(targetPos.x, targetPos.y, targetPos.z + 6.0f);
+            if (m2Renderer) m2H = m2Renderer->getFloorHeight(targetPos.x, targetPos.y, targetPos.z + 1.0f);
+            auto floorH = selectHighestFloor(terrainH, wmoH, m2H);
+            constexpr float MIN_SWIM_WATER_DEPTH = 1.8f;
+            inWater = floorH && ((*waterH - *floorH) >= MIN_SWIM_WATER_DEPTH);
+        }
 
 
         if (inWater) {
@@ -651,8 +676,19 @@ void CameraController::update(float deltaTime) {
             waterH = waterRenderer->getWaterHeightAt(newPos.x, newPos.y);
         }
         constexpr float MAX_SWIM_DEPTH_FROM_SURFACE = 12.0f;
-        bool inWater = waterH && feetZ < *waterH &&
-                       ((*waterH - feetZ) <= MAX_SWIM_DEPTH_FROM_SURFACE);
+        bool inWater = false;
+        if (waterH && feetZ < *waterH &&
+            ((*waterH - feetZ) <= MAX_SWIM_DEPTH_FROM_SURFACE)) {
+            std::optional<float> terrainH;
+            std::optional<float> wmoH;
+            std::optional<float> m2H;
+            if (terrainManager) terrainH = terrainManager->getHeightAt(newPos.x, newPos.y);
+            if (wmoRenderer) wmoH = wmoRenderer->getFloorHeight(newPos.x, newPos.y, feetZ + 6.0f);
+            if (m2Renderer) m2H = m2Renderer->getFloorHeight(newPos.x, newPos.y, feetZ + 1.0f);
+            auto floorH = selectHighestFloor(terrainH, wmoH, m2H);
+            constexpr float MIN_SWIM_WATER_DEPTH = 1.8f;
+            inWater = floorH && ((*waterH - *floorH) >= MIN_SWIM_WATER_DEPTH);
+        }
 
 
         if (inWater) {

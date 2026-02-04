@@ -459,17 +459,10 @@ void WMORenderer::render(const Camera& camera, const glm::mat4& view, const glm:
     frustum.extractFromMatrix(projection * view);
 
     // Render all instances with instance-level culling
-    const glm::vec3 camPos = camera.getPosition();
-    const float maxRenderDistance = 320.0f;  // More aggressive culling for city performance
-    const float maxRenderDistanceSq = maxRenderDistance * maxRenderDistance;
-
     for (const auto& instance : instances) {
-        // Instance-level distance culling
-        glm::vec3 toCam = instance.position - camPos;
-        float distSq = glm::dot(toCam, toCam);
-        if (distSq > maxRenderDistanceSq) {
-            continue;  // Skip instances that are too far
-        }
+        // NOTE: Disabled hard instance-distance culling for WMOs.
+        // Large city WMOs can have instance origins far from local camera position,
+        // causing whole city sections to disappear unexpectedly.
 
         auto modelIt = loadedModels.find(instance.modelId);
         if (modelIt == loadedModels.end()) {
@@ -1030,7 +1023,7 @@ bool WMORenderer::checkWallCollision(const glm::vec3& from, const glm::vec3& to,
     if (moveDistXY < 0.001f) return false;
 
     // Player collision parameters
-    const float PLAYER_RADIUS = 0.6f;       // Character collision radius
+    const float PLAYER_RADIUS = 0.50f;      // Slightly narrower to pass tight doorways/interiors
     const float PLAYER_HEIGHT = 2.0f;       // Player height for wall checks
     const float MAX_STEP_HEIGHT = 0.85f;    // Balanced step-up without wall pass-through
 

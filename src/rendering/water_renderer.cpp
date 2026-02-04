@@ -222,20 +222,6 @@ void WaterRenderer::loadFromTerrain(const pipeline::ADTTerrain& terrain, bool ap
 
             // Copy render mask
             surface.mask = layer.mask;
-            if (!surface.mask.empty()) {
-                bool anyVisible = false;
-                for (uint8_t b : surface.mask) {
-                    if (b != 0) {
-                        anyVisible = true;
-                        break;
-                    }
-                }
-                // Some tiles appear to have malformed/unsupported MH2O masks.
-                // Fall back to full coverage so canal water is still visible.
-                if (!anyVisible) {
-                    std::fill(surface.mask.begin(), surface.mask.end(), 0xFF);
-                }
-            }
 
             surface.tileX = tileX;
             surface.tileY = tileY;
@@ -375,6 +361,11 @@ void WaterRenderer::render(const Camera& camera, float time) {
 
     // Render each water surface
     for (const auto& surface : surfaces) {
+        // WMO liquid parsing is still not reliable; render terrain water only
+        // to avoid large invalid sheets popping over city geometry.
+        if (surface.wmoId != 0) {
+            continue;
+        }
         if (surface.vao == 0) {
             continue;
         }
@@ -422,7 +413,7 @@ void WaterRenderer::createWaterMesh(WaterSurface& surface) {
     // Variable-size grid based on water layer dimensions
     const int gridWidth = surface.width + 1;   // Vertices = tiles + 1
     const int gridHeight = surface.height + 1;
-    constexpr float VISUAL_WATER_Z_BIAS = 0.06f;  // Prevent z-fighting against city/WMO geometry
+    constexpr float VISUAL_WATER_Z_BIAS = 0.02f;  // Small bias to avoid obvious overdraw on city meshes
 
     std::vector<float> vertices;
     std::vector<uint32_t> indices;
@@ -473,11 +464,23 @@ void WaterRenderer::createWaterMesh(WaterSurface& surface) {
             // Check render mask - each bit represents a tile
             bool renderTile = true;
             if (!surface.mask.empty()) {
-                int tileIndex = y * surface.width + x;
+                int tileIndex;
+                if (surface.wmoId == 0 && surface.mask.size() >= 8) {
+                    // Terrain MH2O mask is chunk-wide 8x8.
+                    int cx = static_cast<int>(surface.xOffset) + x;
+                    int cy = static_cast<int>(surface.yOffset) + y;
+                    tileIndex = cy * 8 + cx;
+                } else {
+                    // Local mask indexing (WMO/custom).
+                    tileIndex = y * surface.width + x;
+                }
                 int byteIndex = tileIndex / 8;
                 int bitIndex = tileIndex % 8;
                 if (byteIndex < static_cast<int>(surface.mask.size())) {
-                    renderTile = (surface.mask[byteIndex] & (1 << bitIndex)) != 0;
+                    uint8_t maskByte = surface.mask[byteIndex];
+                    bool lsbOrder = (maskByte & (1 << bitIndex)) != 0;
+                    bool msbOrder = (maskByte & (1 << (7 - bitIndex))) != 0;
+                    renderTile = lsbOrder || msbOrder;
                 }
             }
 
@@ -560,6 +563,11 @@ std::optional<float> WaterRenderer::getWaterHeightAt(float glX, float glY) const
 
     for (size_t si = 0; si < surfaces.size(); si++) {
         const auto& surface = surfaces[si];
+        // Use terrain/MH2O water for gameplay queries. WMO liquid extents are
+        // currently render-only and can overlap interiors.
+        if (surface.wmoId != 0) {
+            continue;
+        }
         glm::vec2 rel(glX - surface.origin.x, glY - surface.origin.y);
         glm::vec2 stepX(surface.stepX.x, surface.stepX.y);
         glm::vec2 stepY(surface.stepY.x, surface.stepY.y);
@@ -593,11 +601,21 @@ std::optional<float> WaterRenderer::getWaterHeightAt(float glX, float glY) const
 
         // Respect per-tile mask so holes/non-liquid tiles do not count as swimmable.
         if (!surface.mask.empty()) {
-            int tileIndex = iy * surface.width + ix;
+            int tileIndex;
+            if (surface.wmoId == 0 && surface.mask.size() >= 8) {
+                int cx = static_cast<int>(surface.xOffset) + ix;
+                int cy = static_cast<int>(surface.yOffset) + iy;
+                tileIndex = cy * 8 + cx;
+            } else {
+                tileIndex = iy * surface.width + ix;
+            }
             int byteIndex = tileIndex / 8;
             int bitIndex = tileIndex % 8;
             if (byteIndex < static_cast<int>(surface.mask.size())) {
-                bool renderTile = (surface.mask[byteIndex] & (1 << bitIndex)) != 0;
+                uint8_t maskByte = surface.mask[byteIndex];
+                bool lsbOrder = (maskByte & (1 << bitIndex)) != 0;
+                bool msbOrder = (maskByte & (1 << (7 - bitIndex))) != 0;
+                bool renderTile = lsbOrder || msbOrder;
                 if (!renderTile) {
                     continue;
                 }
@@ -633,6 +651,9 @@ std::optional<uint16_t> WaterRenderer::getWaterTypeAt(float glX, float glY) cons
     std::optional<uint16_t> bestType;
 
     for (const auto& surface : surfaces) {
+        if (surface.wmoId != 0) {
+            continue;
+        }
         glm::vec2 rel(glX - surface.origin.x, glY - surface.origin.y);
         glm::vec2 stepX(surface.stepX.x, surface.stepX.y);
         glm::vec2 stepY(surface.stepY.x, surface.stepY.y);

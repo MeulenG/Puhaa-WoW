@@ -930,7 +930,7 @@ void Renderer::renderWorld(game::World* world) {
             constexpr float MAX_UNDERWATER_DEPTH = 12.0f;
             // Require camera to be meaningfully below the surface before
             // underwater fog/tint kicks in (avoids "wrong plane" near surface).
-            constexpr float UNDERWATER_ENTER_EPS = 0.45f;
+            constexpr float UNDERWATER_ENTER_EPS = 1.10f;
             if (waterH &&
                 camPos.z < (*waterH - UNDERWATER_ENTER_EPS) &&
                 (*waterH - camPos.z) <= MAX_UNDERWATER_DEPTH) {
@@ -947,23 +947,10 @@ void Renderer::renderWorld(game::World* world) {
                     liquidType = waterRenderer->getWaterTypeAt(followTarget->x, followTarget->y);
                 }
             }
-            bool canalWater = liquidType && (*liquidType == 5 || *liquidType == 13 || *liquidType == 17);
-            canalUnderwater = canalWater;
+            canalUnderwater = liquidType && (*liquidType == 5 || *liquidType == 13 || *liquidType == 17);
+        }
 
-            float fogColor[3] = {0.04f, 0.12f, 0.22f};
-            float fogStart = 8.0f;
-            float fogEnd = 140.0f;
-            if (canalWater) {
-                fogColor[0] = 0.012f;
-                fogColor[1] = 0.055f;
-                fogColor[2] = 0.12f;
-                fogStart = 2.5f;
-                fogEnd = 55.0f;
-            }
-            terrainRenderer->setFog(fogColor, fogStart, fogEnd);
-            glClearColor(fogColor[0], fogColor[1], fogColor[2], 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);  // Re-clear with underwater color
-        } else if (skybox) {
+        if (skybox) {
             // Update terrain fog based on time of day (match sky color)
             glm::vec3 horizonColor = skybox->getHorizonColor(timeOfDay);
             float fogColorArray[3] = {horizonColor.r, horizonColor.g, horizonColor.b};
@@ -1022,7 +1009,7 @@ void Renderer::renderWorld(game::World* world) {
     }
 
     // Full-screen underwater tint so WMO/M2/characters also feel submerged.
-    if (underwater && underwaterOverlayShader && underwaterOverlayVAO) {
+    if (false && underwater && underwaterOverlayShader && underwaterOverlayVAO) {
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
