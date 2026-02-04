@@ -135,6 +135,15 @@ void FootstepManager::reapFinishedProcess() {
 }
 
 bool FootstepManager::playRandomStep(FootstepSurface surface, bool sprinting) {
+    auto now = std::chrono::steady_clock::now();
+    if (lastPlayTime.time_since_epoch().count() != 0) {
+        float elapsed = std::chrono::duration<float>(now - lastPlayTime).count();
+        float minInterval = sprinting ? 0.09f : 0.14f;
+        if (elapsed < minInterval) {
+            return false;
+        }
+    }
+
     auto& list = surfaces[static_cast<size_t>(surface)].clips;
     if (list.empty()) {
         list = surfaces[static_cast<size_t>(FootstepSurface::STONE)].clips;
@@ -181,6 +190,7 @@ bool FootstepManager::playRandomStep(FootstepSurface surface, bool sprinting) {
         _exit(1);
     } else if (pid > 0) {
         playerPid = pid;
+        lastPlayTime = now;
         return true;
     }
 

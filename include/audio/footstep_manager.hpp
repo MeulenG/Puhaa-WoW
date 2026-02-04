@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <sys/types.h>
+#include <chrono>
 
 namespace wowee {
 namespace pipeline { class AssetManager; }
@@ -57,6 +58,7 @@ private:
 
     std::string tempFilePath = "/tmp/wowee_footstep.wav";
     pid_t playerPid = -1;
+    std::chrono::steady_clock::time_point lastPlayTime = std::chrono::steady_clock::time_point{};
 
     std::mt19937 rng;
 };

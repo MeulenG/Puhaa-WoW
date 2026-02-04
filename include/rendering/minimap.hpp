@@ -2,6 +2,7 @@
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
+#include <chrono>
 #include <memory>
 
 namespace wowee {
@@ -48,6 +49,11 @@ private:
     int mapSize = 200;
     float viewRadius = 500.0f;
     bool enabled = false;
+    float updateIntervalSec = 0.25f;
+    float updateDistance = 6.0f;
+    std::chrono::steady_clock::time_point lastUpdateTime = std::chrono::steady_clock::time_point{};
+    glm::vec3 lastUpdatePos = glm::vec3(0.0f);
+    bool hasCachedFrame = false;
 };
 
 } // namespace rendering

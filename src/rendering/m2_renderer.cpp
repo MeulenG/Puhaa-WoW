@@ -70,9 +70,9 @@ float getEffectiveCollisionTopLocal(const M2ModelGPU& model,
     // use edge distance (not radial) so corner blocks don't become too low and
     // clip-through at diagonals.
     float edge = std::max(std::abs(nx), std::abs(ny));
-    if (edge > 0.92f) return localMin.z + h * 0.10f;
-    if (edge > 0.72f) return localMin.z + h * 0.46f;
-    return localMin.z + h * 0.74f;
+    if (edge > 0.92f) return localMin.z + h * 0.06f;
+    if (edge > 0.72f) return localMin.z + h * 0.30f;
+    return localMin.z + h * 0.62f;
 }
 
 bool segmentIntersectsAABB(const glm::vec3& from, const glm::vec3& to,
@@ -351,6 +351,7 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
                                                 (likelyCurbName && (lowPlatformShape || lowWideShape)));
 
         bool isPlanter = (lowerName.find("planter") != std::string::npos);
+        gpuModel.collisionPlanter = isPlanter;
         bool foliageName =
             (lowerName.find("bush") != std::string::npos) ||
             (lowerName.find("grass") != std::string::npos) ||
@@ -371,7 +372,7 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
         bool softTree = treeLike && !hardTreePart && (canopyLike || vert > horiz * 1.35f);
         bool smallSoftShape = (horiz < 2.2f && vert < 2.4f);
         bool mediumFoliageShape = (horiz < 4.5f && vert < 4.5f);
-        bool forceSolidCurb = gpuModel.collisionSteppedLowPlatform || knownStormwindPlanter || likelyCurbName;
+        bool forceSolidCurb = gpuModel.collisionSteppedLowPlatform || knownStormwindPlanter || likelyCurbName || gpuModel.collisionPlanter;
         gpuModel.collisionNoBlock = ((((foliageName && smallSoftShape) || (foliageName && mediumFoliageShape)) || softTree) &&
                                      !forceSolidCurb);
     }
@@ -593,7 +594,7 @@ void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::
     lastDrawCallCount = 0;
 
     // Distance-based culling threshold for M2 models
-    const float maxRenderDistance = 400.0f;  // Balance between performance and visibility
+    const float maxRenderDistance = 180.0f;  // Aggressive culling for city performance
     const float maxRenderDistanceSq = maxRenderDistance * maxRenderDistance;
     const glm::vec3 camPos = camera.getPosition();
 
@@ -609,7 +610,12 @@ void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::
         float distSq = glm::dot(toCam, toCam);
         float worldRadius = model.boundRadius * instance.scale;
         // Cull small objects (radius < 20) at distance, keep larger objects visible longer
-        float effectiveMaxDistSq = maxRenderDistanceSq * std::max(1.0f, worldRadius / 10.0f);
+        float effectiveMaxDistSq = maxRenderDistanceSq * std::max(1.0f, worldRadius / 12.0f);
+        if (worldRadius < 0.8f) {
+            effectiveMaxDistSq = std::min(effectiveMaxDistSq, 65.0f * 65.0f);
+        } else if (worldRadius < 1.5f) {
+            effectiveMaxDistSq = std::min(effectiveMaxDistSq, 95.0f * 95.0f);
+        }
         if (distSq > effectiveMaxDistSq) {
             continue;
         }
@@ -886,7 +892,7 @@ std::optional<float> M2Renderer::getFloorHeight(float glX, float glY, float glZ)
         glm::vec3 worldTop = glm::vec3(instance.modelMatrix * glm::vec4(localTop, 1.0f));
 
         // Reachability filter: allow a bit more climb for stepped low platforms.
-        float maxStepUp = model.collisionSteppedLowPlatform ? 1.8f : 1.0f;
+        float maxStepUp = model.collisionSteppedLowPlatform ? (model.collisionPlanter ? 2.2f : 1.8f) : 1.0f;
         if (worldTop.z > glZ + maxStepUp) continue;
 
         if (!bestFloor || worldTop.z > *bestFloor) {
@@ -948,12 +954,12 @@ bool M2Renderer::checkCollision(const glm::vec3& from, const glm::vec3& to,
 
         // Swept hard clamp for taller blockers only.
         // Low/stepable objects should be climbable and not "shove" the player off.
-        float maxStepUp = model.collisionSteppedLowPlatform ? 2.0f : 1.20f;
+        float maxStepUp = model.collisionSteppedLowPlatform ? (model.collisionPlanter ? 2.8f : 2.4f) : 1.20f;
         bool stepableLowObject = (effectiveTop <= localFrom.z + maxStepUp);
         bool climbingAttempt = (localPos.z > localFrom.z + 0.18f);
         bool nearTop = (localFrom.z >= effectiveTop - 0.30f);
-        bool climbingTowardTop = climbingAttempt && (localFrom.z + 0.35f >= effectiveTop);
-        bool forceHardLateral = model.collisionSteppedLowPlatform && !nearTop && !climbingTowardTop;
+        bool climbingTowardTop = climbingAttempt && (localFrom.z + (model.collisionPlanter ? 0.95f : 0.60f) >= effectiveTop);
+        bool forceHardLateral = model.collisionSteppedLowPlatform && !model.collisionPlanter && !nearTop && !climbingTowardTop;
         if (!stepableLowObject || forceHardLateral) {
             float tEnter = 0.0f;
             glm::vec3 sweepMax = localMax;
@@ -988,7 +994,11 @@ bool M2Renderer::checkCollision(const glm::vec3& from, const glm::vec3& to,
         // Gentle fallback push for overlapping cases.
         float pushAmount;
         if (model.collisionSteppedLowPlatform) {
-            pushAmount = std::clamp(minPush * 0.18f, 0.006f, 0.020f);
+            if (model.collisionPlanter && stepableLowObject) {
+                pushAmount = std::clamp(minPush * 0.06f, 0.001f, 0.006f);
+            } else {
+            pushAmount = std::clamp(minPush * 0.12f, 0.003f, 0.012f);
+            }
         } else if (stepableLowObject) {
             pushAmount = std::clamp(minPush * 0.12f, 0.002f, 0.015f);
         } else {

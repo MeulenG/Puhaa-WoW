@@ -140,8 +140,22 @@ void Minimap::shutdown() {
 void Minimap::render(const Camera& playerCamera, int screenWidth, int screenHeight) {
     if (!enabled || !terrainRenderer || !fbo) return;
 
-    // 1. Render terrain from top-down into FBO
-    renderTerrainToFBO(playerCamera);
+    const auto now = std::chrono::steady_clock::now();
+    glm::vec3 playerPos = playerCamera.getPosition();
+    bool needsRefresh = !hasCachedFrame;
+    if (!needsRefresh) {
+        float moved = glm::length(glm::vec2(playerPos.x - lastUpdatePos.x, playerPos.y - lastUpdatePos.y));
+        float elapsed = std::chrono::duration<float>(now - lastUpdateTime).count();
+        needsRefresh = (moved >= updateDistance) || (elapsed >= updateIntervalSec);
+    }
+
+    // 1. Render terrain from top-down into FBO (throttled)
+    if (needsRefresh) {
+        renderTerrainToFBO(playerCamera);
+        lastUpdateTime = now;
+        lastUpdatePos = playerPos;
+        hasCachedFrame = true;
+    }
 
     // 2. Draw the minimap quad on screen
     renderQuad(screenWidth, screenHeight);

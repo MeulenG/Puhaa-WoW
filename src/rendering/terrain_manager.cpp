@@ -89,9 +89,12 @@ TerrainManager::~TerrainManager() {
     if (workerRunning.load()) {
         workerRunning.store(false);
         queueCV.notify_all();
-        if (workerThread.joinable()) {
-            workerThread.join();
+        for (auto& t : workerThreads) {
+            if (t.joinable()) {
+                t.join();
+            }
         }
+        workerThreads.clear();
     }
 }
 
@@ -109,14 +112,20 @@ bool TerrainManager::initialize(pipeline::AssetManager* assets, TerrainRenderer*
         return false;
     }
 
-    // Start background worker thread
+    // Start background worker pool
     workerRunning.store(true);
-    workerThread = std::thread(&TerrainManager::workerLoop, this);
+    unsigned hc = std::thread::hardware_concurrency();
+    workerCount = static_cast<int>(hc > 0 ? std::min(4u, std::max(2u, hc - 1)) : 2u);
+    workerThreads.reserve(workerCount);
+    for (int i = 0; i < workerCount; i++) {
+        workerThreads.emplace_back(&TerrainManager::workerLoop, this);
+    }
 
     LOG_INFO("Terrain manager initialized (async loading enabled)");
     LOG_INFO("  Map: ", mapName);
     LOG_INFO("  Load radius: ", loadRadius, " tiles");
     LOG_INFO("  Unload radius: ", unloadRadius, " tiles");
+    LOG_INFO("  Workers: ", workerCount);
 
     return true;
 }
@@ -152,7 +161,7 @@ void TerrainManager::update(const Camera& camera, float deltaTime) {
 
     // Stream tiles if we've moved significantly or initial load
     if (newTile.x != lastStreamTile.x || newTile.y != lastStreamTile.y) {
-        LOG_INFO("Streaming: cam=(", camPos.x, ",", camPos.y, ",", camPos.z,
+        LOG_DEBUG("Streaming: cam=(", camPos.x, ",", camPos.y, ",", camPos.z,
                  ") tile=[", newTile.x, ",", newTile.y,
                  "] loaded=", loadedTiles.size());
         streamTiles();
@@ -189,7 +198,7 @@ bool TerrainManager::loadTile(int x, int y) {
 std::unique_ptr<PendingTile> TerrainManager::prepareTile(int x, int y) {
     TileCoord coord = {x, y};
 
-    LOG_INFO("Preparing tile [", x, ",", y, "] (CPU work)");
+    LOG_DEBUG("Preparing tile [", x, ",", y, "] (CPU work)");
 
     // Load ADT file
     std::string adtPath = getADTPath(coord);
@@ -445,7 +454,7 @@ std::unique_ptr<PendingTile> TerrainManager::prepareTile(int x, int y) {
         }
     }
 
-    LOG_INFO("Prepared tile [", x, ",", y, "]: ",
+    LOG_DEBUG("Prepared tile [", x, ",", y, "]: ",
              pending->m2Models.size(), " M2 models, ",
              pending->m2Placements.size(), " M2 placements, ",
              pending->wmoModels.size(), " WMOs, ",
@@ -459,7 +468,7 @@ void TerrainManager::finalizeTile(std::unique_ptr<PendingTile> pending) {
     int y = pending->coord.y;
     TileCoord coord = pending->coord;
 
-    LOG_INFO("Finalizing tile [", x, ",", y, "] (GPU upload)");
+    LOG_DEBUG("Finalizing tile [", x, ",", y, "] (GPU upload)");
 
     // Check if tile was already loaded (race condition guard) or failed
     if (loadedTiles.find(coord) != loadedTiles.end()) {
@@ -517,7 +526,7 @@ void TerrainManager::finalizeTile(std::unique_ptr<PendingTile> pending) {
             }
         }
 
-        LOG_INFO("  Loaded doodads for tile [", x, ",", y, "]: ",
+        LOG_DEBUG("  Loaded doodads for tile [", x, ",", y, "]: ",
                  loadedDoodads, " instances (", uploadedModelIds.size(), " new models, ",
                  skippedDedup, " dedup skipped)");
     }
@@ -558,7 +567,7 @@ void TerrainManager::finalizeTile(std::unique_ptr<PendingTile> pending) {
             }
         }
         if (loadedLiquids > 0) {
-            LOG_INFO("  Loaded WMO liquids for tile [", x, ",", y, "]: ", loadedLiquids);
+            LOG_DEBUG("  Loaded WMO liquids for tile [", x, ",", y, "]: ", loadedLiquids);
         }
 
         // Upload WMO doodad M2 models
@@ -572,7 +581,7 @@ void TerrainManager::finalizeTile(std::unique_ptr<PendingTile> pending) {
         }
 
         if (loadedWMOs > 0) {
-            LOG_INFO("  Loaded WMOs for tile [", x, ",", y, "]: ", loadedWMOs);
+            LOG_DEBUG("  Loaded WMOs for tile [", x, ",", y, "]: ", loadedWMOs);
         }
     }
 
@@ -591,7 +600,7 @@ void TerrainManager::finalizeTile(std::unique_ptr<PendingTile> pending) {
 
     loadedTiles[coord] = std::move(tile);
 
-    LOG_INFO("  Finalized tile [", x, ",", y, "]");
+    LOG_DEBUG("  Finalized tile [", x, ",", y, "]");
 }
 
 void TerrainManager::workerLoop() {
@@ -728,9 +737,12 @@ void TerrainManager::unloadAll() {
     if (workerRunning.load()) {
         workerRunning.store(false);
         queueCV.notify_all();
-        if (workerThread.joinable()) {
-            workerThread.join();
+        for (auto& t : workerThreads) {
+            if (t.joinable()) {
+                t.join();
+            }
         }
+        workerThreads.clear();
     }
 
     // Clear queues
@@ -809,59 +821,88 @@ std::optional<float> TerrainManager::getHeightAt(float glX, float glY) const {
 
     const float unitSize = CHUNK_SIZE / 8.0f;
 
-    // Query coordinates are the same as what we pass (terrain uses identity model matrix)
-    float queryX = glX;
-    float queryY = glY;
+    auto sampleTileHeight = [&](const TerrainTile* tile) -> std::optional<float> {
+        if (!tile || !tile->loaded) return std::nullopt;
 
-    for (const auto& [coord, tile] : loadedTiles) {
-        if (!tile || !tile->loaded) continue;
+        auto sampleChunk = [&](int cx, int cy) -> std::optional<float> {
+            if (cx < 0 || cx >= 16 || cy < 0 || cy >= 16) return std::nullopt;
+            const auto& chunk = tile->terrain.getChunk(cx, cy);
+            if (!chunk.hasHeightMap()) return std::nullopt;
 
-        for (int cy = 0; cy < 16; cy++) {
-            for (int cx = 0; cx < 16; cx++) {
-                const auto& chunk = tile->terrain.getChunk(cx, cy);
-                if (!chunk.hasHeightMap()) continue;
+            float chunkMaxX = chunk.position[0];
+            float chunkMinX = chunk.position[0] - 8.0f * unitSize;
+            float chunkMaxY = chunk.position[1];
+            float chunkMinY = chunk.position[1] - 8.0f * unitSize;
 
-                float chunkMaxX = chunk.position[0];
-                float chunkMinX = chunk.position[0] - 8.0f * unitSize;
-                float chunkMaxY = chunk.position[1];
-                float chunkMinY = chunk.position[1] - 8.0f * unitSize;
+            if (glX < chunkMinX || glX > chunkMaxX ||
+                glY < chunkMinY || glY > chunkMaxY) {
+                return std::nullopt;
+            }
 
-                if (queryX < chunkMinX || queryX > chunkMaxX ||
-                    queryY < chunkMinY || queryY > chunkMaxY) {
-                    continue;
-                }
+            // Fractional position within chunk (0-8 range)
+            float fracY = (chunk.position[0] - glX) / unitSize;  // maps to offsetY
+            float fracX = (chunk.position[1] - glY) / unitSize;  // maps to offsetX
 
-                // Fractional position within chunk (0-8 range)
-                float fracY = (chunk.position[0] - glX) / unitSize;  // maps to offsetY
-                float fracX = (chunk.position[1] - glY) / unitSize;  // maps to offsetX
+            fracX = glm::clamp(fracX, 0.0f, 8.0f);
+            fracY = glm::clamp(fracY, 0.0f, 8.0f);
 
-                fracX = glm::clamp(fracX, 0.0f, 8.0f);
-                fracY = glm::clamp(fracY, 0.0f, 8.0f);
+            // Bilinear interpolation on 9x9 outer grid
+            int gx0 = static_cast<int>(std::floor(fracX));
+            int gy0 = static_cast<int>(std::floor(fracY));
+            int gx1 = std::min(gx0 + 1, 8);
+            int gy1 = std::min(gy0 + 1, 8);
 
-                // Bilinear interpolation on 9x9 outer grid
-                int gx0 = static_cast<int>(std::floor(fracX));
-                int gy0 = static_cast<int>(std::floor(fracY));
-                int gx1 = std::min(gx0 + 1, 8);
-                int gy1 = std::min(gy0 + 1, 8);
+            float tx = fracX - gx0;
+            float ty = fracY - gy0;
 
-                float tx = fracX - gx0;
-                float ty = fracY - gy0;
+            float h00 = chunk.heightMap.heights[gy0 * 17 + gx0];
+            float h10 = chunk.heightMap.heights[gy0 * 17 + gx1];
+            float h01 = chunk.heightMap.heights[gy1 * 17 + gx0];
+            float h11 = chunk.heightMap.heights[gy1 * 17 + gx1];
 
-                // Outer vertex heights from the 9x17 layout
-                // Outer vertex (gx, gy) is at index: gy * 17 + gx
-                float h00 = chunk.heightMap.heights[gy0 * 17 + gx0];
-                float h10 = chunk.heightMap.heights[gy0 * 17 + gx1];
-                float h01 = chunk.heightMap.heights[gy1 * 17 + gx0];
-                float h11 = chunk.heightMap.heights[gy1 * 17 + gx1];
+            float h = h00 * (1 - tx) * (1 - ty) +
+                      h10 * tx * (1 - ty) +
+                      h01 * (1 - tx) * ty +
+                      h11 * tx * ty;
 
-                float h = h00 * (1 - tx) * (1 - ty) +
-                          h10 * tx * (1 - ty) +
-                          h01 * (1 - tx) * ty +
-                          h11 * tx * ty;
+            return chunk.position[2] + h;
+        };
 
-                return chunk.position[2] + h;
+        // Fast path: infer likely chunk index and probe 3x3 neighborhood.
+        int guessCy = glm::clamp(static_cast<int>(std::floor((tile->maxX - glX) / CHUNK_SIZE)), 0, 15);
+        int guessCx = glm::clamp(static_cast<int>(std::floor((tile->maxY - glY) / CHUNK_SIZE)), 0, 15);
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                auto h = sampleChunk(guessCx + dx, guessCy + dy);
+                if (h) return h;
             }
         }
+
+        // Fallback full scan for robustness at seams/unusual coords.
+        for (int cy = 0; cy < 16; cy++) {
+            for (int cx = 0; cx < 16; cx++) {
+                auto h = sampleChunk(cx, cy);
+                if (h) {
+                    return h;
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    // Fast path: sample the expected containing tile first.
+    TileCoord tc = worldToTile(glX, glY);
+    auto it = loadedTiles.find(tc);
+    if (it != loadedTiles.end()) {
+        auto h = sampleTileHeight(it->second.get());
+        if (h) return h;
+    }
+
+    // Fallback: check all loaded tiles (handles seam/edge coordinate ambiguity).
+    for (const auto& [coord, tile] : loadedTiles) {
+        if (coord == tc) continue;
+        auto h = sampleTileHeight(tile.get());
+        if (h) return h;
     }
 
     return std::nullopt;
@@ -870,61 +911,92 @@ std::optional<float> TerrainManager::getHeightAt(float glX, float glY) const {
 std::optional<std::string> TerrainManager::getDominantTextureAt(float glX, float glY) const {
     const float unitSize = CHUNK_SIZE / 8.0f;
     std::vector<uint8_t> alphaScratch;
+    auto sampleTileTexture = [&](const TerrainTile* tile) -> std::optional<std::string> {
+        if (!tile || !tile->loaded) return std::nullopt;
 
-    for (const auto& [coord, tile] : loadedTiles) {
-        (void)coord;
-        if (!tile || !tile->loaded) continue;
+        auto sampleChunkTexture = [&](int cx, int cy) -> std::optional<std::string> {
+            if (cx < 0 || cx >= 16 || cy < 0 || cy >= 16) return std::nullopt;
+            const auto& chunk = tile->terrain.getChunk(cx, cy);
+            if (!chunk.hasHeightMap() || chunk.layers.empty()) return std::nullopt;
+
+            float chunkMaxX = chunk.position[0];
+            float chunkMinX = chunk.position[0] - 8.0f * unitSize;
+            float chunkMaxY = chunk.position[1];
+            float chunkMinY = chunk.position[1] - 8.0f * unitSize;
+            if (glX < chunkMinX || glX > chunkMaxX || glY < chunkMinY || glY > chunkMaxY) {
+                return std::nullopt;
+            }
+
+            float fracY = (chunk.position[0] - glX) / unitSize;
+            float fracX = (chunk.position[1] - glY) / unitSize;
+            fracX = glm::clamp(fracX, 0.0f, 8.0f);
+            fracY = glm::clamp(fracY, 0.0f, 8.0f);
+
+            int alphaX = glm::clamp(static_cast<int>((fracX / 8.0f) * 63.0f), 0, 63);
+            int alphaY = glm::clamp(static_cast<int>((fracY / 8.0f) * 63.0f), 0, 63);
+            int alphaIndex = alphaY * 64 + alphaX;
+
+            std::vector<int> weights(chunk.layers.size(), 0);
+            int accum = 0;
+            for (size_t layerIdx = 1; layerIdx < chunk.layers.size(); layerIdx++) {
+                int alpha = 0;
+                if (decodeLayerAlpha(chunk, layerIdx, alphaScratch) && alphaIndex < static_cast<int>(alphaScratch.size())) {
+                    alpha = alphaScratch[alphaIndex];
+                }
+                weights[layerIdx] = alpha;
+                accum += alpha;
+            }
+            weights[0] = glm::clamp(255 - accum, 0, 255);
+
+            size_t bestLayer = 0;
+            int bestWeight = weights[0];
+            for (size_t i = 1; i < weights.size(); i++) {
+                if (weights[i] > bestWeight) {
+                    bestWeight = weights[i];
+                    bestLayer = i;
+                }
+            }
+
+            uint32_t texId = chunk.layers[bestLayer].textureId;
+            if (texId < tile->terrain.textures.size()) {
+                return tile->terrain.textures[texId];
+            }
+            return std::nullopt;
+        };
+
+        int guessCy = glm::clamp(static_cast<int>(std::floor((tile->maxX - glX) / CHUNK_SIZE)), 0, 15);
+        int guessCx = glm::clamp(static_cast<int>(std::floor((tile->maxY - glY) / CHUNK_SIZE)), 0, 15);
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                auto tex = sampleChunkTexture(guessCx + dx, guessCy + dy);
+                if (tex) return tex;
+            }
+        }
 
         for (int cy = 0; cy < 16; cy++) {
             for (int cx = 0; cx < 16; cx++) {
-                const auto& chunk = tile->terrain.getChunk(cx, cy);
-                if (!chunk.hasHeightMap() || chunk.layers.empty()) continue;
-
-                float chunkMaxX = chunk.position[0];
-                float chunkMinX = chunk.position[0] - 8.0f * unitSize;
-                float chunkMaxY = chunk.position[1];
-                float chunkMinY = chunk.position[1] - 8.0f * unitSize;
-                if (glX < chunkMinX || glX > chunkMaxX || glY < chunkMinY || glY > chunkMaxY) {
-                    continue;
+                auto tex = sampleChunkTexture(cx, cy);
+                if (tex) {
+                    return tex;
                 }
-
-                float fracY = (chunk.position[0] - glX) / unitSize;
-                float fracX = (chunk.position[1] - glY) / unitSize;
-                fracX = glm::clamp(fracX, 0.0f, 8.0f);
-                fracY = glm::clamp(fracY, 0.0f, 8.0f);
-
-                int alphaX = glm::clamp(static_cast<int>((fracX / 8.0f) * 63.0f), 0, 63);
-                int alphaY = glm::clamp(static_cast<int>((fracY / 8.0f) * 63.0f), 0, 63);
-                int alphaIndex = alphaY * 64 + alphaX;
-
-                std::vector<int> weights(chunk.layers.size(), 0);
-                int accum = 0;
-                for (size_t layerIdx = 1; layerIdx < chunk.layers.size(); layerIdx++) {
-                    int alpha = 0;
-                    if (decodeLayerAlpha(chunk, layerIdx, alphaScratch) && alphaIndex < static_cast<int>(alphaScratch.size())) {
-                        alpha = alphaScratch[alphaIndex];
-                    }
-                    weights[layerIdx] = alpha;
-                    accum += alpha;
-                }
-                weights[0] = glm::clamp(255 - accum, 0, 255);
-
-                size_t bestLayer = 0;
-                int bestWeight = weights[0];
-                for (size_t i = 1; i < weights.size(); i++) {
-                    if (weights[i] > bestWeight) {
-                        bestWeight = weights[i];
-                        bestLayer = i;
-                    }
-                }
-
-                uint32_t texId = chunk.layers[bestLayer].textureId;
-                if (texId < tile->terrain.textures.size()) {
-                    return tile->terrain.textures[texId];
-                }
-                return std::nullopt;
             }
         }
+        return std::nullopt;
+    };
+
+    // Fast path: check expected containing tile first.
+    TileCoord tc = worldToTile(glX, glY);
+    auto it = loadedTiles.find(tc);
+    if (it != loadedTiles.end()) {
+        auto tex = sampleTileTexture(it->second.get());
+        if (tex) return tex;
+    }
+
+    // Fallback: seam/edge case.
+    for (const auto& [coord, tile] : loadedTiles) {
+        if (coord == tc) continue;
+        auto tex = sampleTileTexture(tile.get());
+        if (tex) return tex;
     }
 
     return std::nullopt;
@@ -958,8 +1030,8 @@ void TerrainManager::streamTiles() {
         }
     }
 
-    // Notify worker thread that there's work
-    queueCV.notify_one();
+    // Notify workers that there's work
+    queueCV.notify_all();
 
     // Unload tiles beyond unload radius (well past the camera far clip)
     std::vector<TileCoord> tilesToUnload;

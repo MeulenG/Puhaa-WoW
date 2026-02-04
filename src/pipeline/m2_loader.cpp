@@ -523,7 +523,10 @@ M2Model M2Loader::load(const std::vector<uint8_t>& m2Data) {
         model.attachmentLookup = readArray<uint16_t>(m2Data, header.ofsAttachmentLookup, header.nAttachmentLookup);
     }
 
-    core::Logger::getInstance().debug("M2 model loaded: ", model.name);
+    static int m2LoadLogBudget = 200;
+    if (m2LoadLogBudget-- > 0) {
+        core::Logger::getInstance().debug("M2 model loaded: ", model.name);
+    }
     return model;
 }
 

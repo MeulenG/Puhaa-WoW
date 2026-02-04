@@ -460,7 +460,7 @@ void WMORenderer::render(const Camera& camera, const glm::mat4& view, const glm:
 
     // Render all instances with instance-level culling
     const glm::vec3 camPos = camera.getPosition();
-    const float maxRenderDistance = 500.0f;  // Reduced for performance
+    const float maxRenderDistance = 320.0f;  // More aggressive culling for city performance
     const float maxRenderDistanceSq = maxRenderDistance * maxRenderDistance;
 
     for (const auto& instance : instances) {
@@ -1094,7 +1094,7 @@ bool WMORenderer::checkWallCollision(const glm::vec3& from, const glm::vec3& to,
                 if (normalLen < 0.001f) continue;
                 normal /= normalLen;
 
-                // Skip near-horizontal triangles (floors/ceilings), keep sloped tunnel walls.
+                // Skip near-horizontal triangles (floors/ceilings).
                 if (std::abs(normal.z) > 0.85f) continue;
 
                 // Get triangle Z range
@@ -1104,7 +1104,30 @@ bool WMORenderer::checkWallCollision(const glm::vec3& from, const glm::vec3& to,
                 // Only collide with walls in player's vertical range
                 if (triMaxZ < localFeetZ + 0.3f) continue;
                 if (triMinZ > localFeetZ + PLAYER_HEIGHT) continue;
-                if (triMaxZ <= localFeetZ + MAX_STEP_HEIGHT) continue;  // Treat as step-up, not hard wall
+
+                // Lower parts of ramps should be stepable from the side.
+                // Allow a larger step-up budget for ramp-like triangles.
+                // Allow running off/onto lower ramp side geometry without invisible wall blocks.
+                if (normal.z > 0.20f && triMaxZ <= localFeetZ + 1.60f) continue;
+                // Ignore short near-vertical side strips around ramps/edges.
+                // These commonly act like invisible side guard rails.
+                float triHeight = triMaxZ - triMinZ;
+                if (std::abs(normal.z) < 0.25f &&
+                    triHeight < 1.8f &&
+                    triMaxZ <= localFeetZ + 1.4f) {
+                    continue;
+                }
+                // Let players run off ramp sides: ignore lower side-wall strips
+                // that sit around foot height and are not true tall building walls.
+                if (std::abs(normal.z) < 0.45f &&
+                    triMinZ <= localFeetZ + 0.20f &&
+                    triHeight < 4.0f &&
+                    triMaxZ <= localFeetZ + 4.0f) {
+                    continue;
+                }
+
+                float stepHeightLimit = MAX_STEP_HEIGHT;
+                if (triMaxZ <= localFeetZ + stepHeightLimit) continue;  // Treat as step-up, not hard wall
 
                 // Swept test: prevent tunneling when crossing a wall between frames.
                 float fromDist = glm::dot(localFrom - v0, normal);

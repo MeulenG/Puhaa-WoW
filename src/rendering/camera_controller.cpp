@@ -235,9 +235,9 @@ void CameraController::update(float deltaTime) {
             glm::vec3 desiredPos = targetPos;
             float moveDist = glm::length(desiredPos - startPos);
             // Adaptive CCD: keep per-step movement short, especially on low FPS spikes.
-            int sweepSteps = std::max(1, std::min(24, static_cast<int>(std::ceil(moveDist / 0.18f))));
+            int sweepSteps = std::max(1, std::min(14, static_cast<int>(std::ceil(moveDist / 0.24f))));
             if (deltaTime > 0.04f) {
-                sweepSteps = std::min(28, std::max(sweepSteps, static_cast<int>(std::ceil(deltaTime / 0.016f)) * 3));
+                sweepSteps = std::min(16, std::max(sweepSteps, static_cast<int>(std::ceil(deltaTime / 0.016f)) * 2));
             }
             glm::vec3 stepPos = startPos;
             glm::vec3 stepDelta = (desiredPos - startPos) / static_cast<float>(sweepSteps);
@@ -270,42 +270,44 @@ void CameraController::update(float deltaTime) {
 
         // WoW-style slope limiting (50 degrees, with sliding)
         // dot(normal, up) >= 0.64 is walkable, otherwise slide
+        constexpr bool ENABLE_SLOPE_SLIDE = false;
         constexpr float MAX_WALK_SLOPE_DOT = 0.6428f;  // cos(50°)
         constexpr float SAMPLE_DIST = 0.3f;  // Distance to sample for normal calculation
-        {
+        if (ENABLE_SLOPE_SLIDE) {
             glm::vec3 oldPos = *followTarget;
+            float moveXY = glm::length(glm::vec2(targetPos.x - oldPos.x, targetPos.y - oldPos.y));
+            if (moveXY >= 0.03f) {
+                struct GroundSample {
+                    std::optional<float> height;
+                    bool fromM2 = false;
+                };
+                // Helper to get ground height at a position and whether M2 provided the top floor.
+                auto getGroundAt = [&](float x, float y) -> GroundSample {
+                    std::optional<float> terrainH;
+                    std::optional<float> wmoH;
+                    std::optional<float> m2H;
+                    if (terrainManager) {
+                        terrainH = terrainManager->getHeightAt(x, y);
+                    }
+                    if (wmoRenderer) {
+                        wmoH = wmoRenderer->getFloorHeight(x, y, targetPos.z + 5.0f);
+                    }
+                    if (m2Renderer) {
+                        m2H = m2Renderer->getFloorHeight(x, y, targetPos.z);
+                    }
+                    auto base = selectReachableFloor(terrainH, wmoH, targetPos.z, 1.0f);
+                    bool fromM2 = false;
+                    if (m2H && *m2H <= targetPos.z + 1.0f && (!base || *m2H > *base)) {
+                        base = m2H;
+                        fromM2 = true;
+                    }
+                    return GroundSample{base, fromM2};
+                };
 
-            struct GroundSample {
-                std::optional<float> height;
-                bool fromM2 = false;
-            };
-            // Helper to get ground height at a position and whether M2 provided the top floor.
-            auto getGroundAt = [&](float x, float y) -> GroundSample {
-                std::optional<float> terrainH;
-                std::optional<float> wmoH;
-                std::optional<float> m2H;
-                if (terrainManager) {
-                    terrainH = terrainManager->getHeightAt(x, y);
-                }
-                if (wmoRenderer) {
-                    wmoH = wmoRenderer->getFloorHeight(x, y, targetPos.z + 5.0f);
-                }
-                if (m2Renderer) {
-                    m2H = m2Renderer->getFloorHeight(x, y, targetPos.z);
-                }
-                auto base = selectReachableFloor(terrainH, wmoH, targetPos.z, 1.0f);
-                bool fromM2 = false;
-                if (m2H && *m2H <= targetPos.z + 1.0f && (!base || *m2H > *base)) {
-                    base = m2H;
-                    fromM2 = true;
-                }
-                return GroundSample{base, fromM2};
-            };
-
-            // Get ground height at target position
-            auto center = getGroundAt(targetPos.x, targetPos.y);
-            bool skipSlopeCheck = center.height && center.fromM2;
-            if (center.height && !skipSlopeCheck) {
+                // Get ground height at target position
+                auto center = getGroundAt(targetPos.x, targetPos.y);
+                bool skipSlopeCheck = center.height && center.fromM2;
+                if (center.height && !skipSlopeCheck) {
 
                 // Calculate ground normal using height samples
                 auto hPosX = getGroundAt(targetPos.x + SAMPLE_DIST, targetPos.y);
@@ -361,6 +363,7 @@ void CameraController::update(float deltaTime) {
                         }
                     }
                 }
+                }
             }
         }
 
@@ -390,7 +393,7 @@ void CameraController::update(float deltaTime) {
             std::optional<float> groundH;
             constexpr float FOOTPRINT = 0.28f;
             const glm::vec2 offsets[] = {
-                {0.0f, 0.0f}, {FOOTPRINT, 0.0f}, {-FOOTPRINT, 0.0f}, {0.0f, FOOTPRINT}, {0.0f, -FOOTPRINT}
+                {0.0f, 0.0f}, {FOOTPRINT, 0.0f}, {0.0f, FOOTPRINT}
             };
             for (const auto& o : offsets) {
                 auto h = sampleGround(targetPos.x + o.x, targetPos.y + o.y);
@@ -603,9 +606,9 @@ void CameraController::update(float deltaTime) {
             glm::vec3 startFeet = camera->getPosition() - glm::vec3(0, 0, eyeHeight);
             glm::vec3 desiredFeet = newPos - glm::vec3(0, 0, eyeHeight);
             float moveDist = glm::length(desiredFeet - startFeet);
-            int sweepSteps = std::max(1, std::min(24, static_cast<int>(std::ceil(moveDist / 0.18f))));
+            int sweepSteps = std::max(1, std::min(14, static_cast<int>(std::ceil(moveDist / 0.24f))));
             if (deltaTime > 0.04f) {
-                sweepSteps = std::min(28, std::max(sweepSteps, static_cast<int>(std::ceil(deltaTime / 0.016f)) * 3));
+                sweepSteps = std::min(16, std::max(sweepSteps, static_cast<int>(std::ceil(deltaTime / 0.016f)) * 2));
             }
             glm::vec3 stepPos = startFeet;
             glm::vec3 stepDelta = (desiredFeet - startFeet) / static_cast<float>(sweepSteps);

@@ -44,6 +44,7 @@ struct M2ModelGPU {
     float boundRadius = 0.0f;
     bool collisionSteppedFountain = false;
     bool collisionSteppedLowPlatform = false;
+    bool collisionPlanter = false;
     bool collisionNoBlock = false;
 
     std::string name;
