@@ -275,8 +275,12 @@ void CameraController::update(float deltaTime) {
         {
             glm::vec3 oldPos = *followTarget;
 
-            // Helper to get ground height at a position
-            auto getGroundAt = [&](float x, float y) -> std::optional<float> {
+            struct GroundSample {
+                std::optional<float> height;
+                bool fromM2 = false;
+            };
+            // Helper to get ground height at a position and whether M2 provided the top floor.
+            auto getGroundAt = [&](float x, float y) -> GroundSample {
                 std::optional<float> terrainH;
                 std::optional<float> wmoH;
                 std::optional<float> m2H;
@@ -290,15 +294,19 @@ void CameraController::update(float deltaTime) {
                     m2H = m2Renderer->getFloorHeight(x, y, targetPos.z);
                 }
                 auto base = selectReachableFloor(terrainH, wmoH, targetPos.z, 1.0f);
+                bool fromM2 = false;
                 if (m2H && *m2H <= targetPos.z + 1.0f && (!base || *m2H > *base)) {
                     base = m2H;
+                    fromM2 = true;
                 }
-                return base;
+                return GroundSample{base, fromM2};
             };
 
             // Get ground height at target position
-            auto centerH = getGroundAt(targetPos.x, targetPos.y);
-            if (centerH) {
+            auto center = getGroundAt(targetPos.x, targetPos.y);
+            bool skipSlopeCheck = center.height && center.fromM2;
+            if (center.height && !skipSlopeCheck) {
+
                 // Calculate ground normal using height samples
                 auto hPosX = getGroundAt(targetPos.x + SAMPLE_DIST, targetPos.y);
                 auto hNegX = getGroundAt(targetPos.x - SAMPLE_DIST, targetPos.y);
@@ -307,20 +315,20 @@ void CameraController::update(float deltaTime) {
 
                 // Estimate partial derivatives
                 float dzdx = 0.0f, dzdy = 0.0f;
-                if (hPosX && hNegX) {
-                    dzdx = (*hPosX - *hNegX) / (2.0f * SAMPLE_DIST);
-                } else if (hPosX) {
-                    dzdx = (*hPosX - *centerH) / SAMPLE_DIST;
-                } else if (hNegX) {
-                    dzdx = (*centerH - *hNegX) / SAMPLE_DIST;
+                if (hPosX.height && hNegX.height) {
+                    dzdx = (*hPosX.height - *hNegX.height) / (2.0f * SAMPLE_DIST);
+                } else if (hPosX.height) {
+                    dzdx = (*hPosX.height - *center.height) / SAMPLE_DIST;
+                } else if (hNegX.height) {
+                    dzdx = (*center.height - *hNegX.height) / SAMPLE_DIST;
                 }
 
-                if (hPosY && hNegY) {
-                    dzdy = (*hPosY - *hNegY) / (2.0f * SAMPLE_DIST);
-                } else if (hPosY) {
-                    dzdy = (*hPosY - *centerH) / SAMPLE_DIST;
-                } else if (hNegY) {
-                    dzdy = (*centerH - *hNegY) / SAMPLE_DIST;
+                if (hPosY.height && hNegY.height) {
+                    dzdy = (*hPosY.height - *hNegY.height) / (2.0f * SAMPLE_DIST);
+                } else if (hPosY.height) {
+                    dzdy = (*hPosY.height - *center.height) / SAMPLE_DIST;
+                } else if (hNegY.height) {
+                    dzdy = (*center.height - *hNegY.height) / SAMPLE_DIST;
                 }
 
                 // Ground normal = normalize(cross(tangentX, tangentY))

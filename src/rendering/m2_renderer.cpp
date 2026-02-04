@@ -23,11 +23,18 @@ void getTightCollisionBounds(const M2ModelGPU& model, glm::vec3& outMin, glm::ve
     glm::vec3 center = (model.boundMin + model.boundMax) * 0.5f;
     glm::vec3 half = (model.boundMax - model.boundMin) * 0.5f;
 
-    // Tighter-than-before fit: M2 header bounds are often conservative.
-    // Keep collision closer to visible mesh to avoid oversized blockers.
-    half.x *= 0.66f;
-    half.y *= 0.66f;
-    half.z *= 0.76f;
+    // Per-shape collision fitting:
+    // - default: tighter fit (avoid oversized blockers)
+    // - stepped low platforms (tree curbs/planters): wider XY + lower Z
+    if (model.collisionSteppedLowPlatform) {
+        half.x *= 0.92f;
+        half.y *= 0.92f;
+        half.z *= 0.52f;
+    } else {
+        half.x *= 0.66f;
+        half.y *= 0.66f;
+        half.z *= 0.76f;
+    }
 
     outMin = center - half;
     outMax = center + half;
@@ -37,7 +44,7 @@ float getEffectiveCollisionTopLocal(const M2ModelGPU& model,
                                     const glm::vec3& localPos,
                                     const glm::vec3& localMin,
                                     const glm::vec3& localMax) {
-    if (!model.collisionSteppedFountain) {
+    if (!model.collisionSteppedFountain && !model.collisionSteppedLowPlatform) {
         return localMax.z;
     }
 
@@ -52,10 +59,20 @@ float getEffectiveCollisionTopLocal(const M2ModelGPU& model,
     float r = std::sqrt(nx * nx + ny * ny);
 
     float h = localMax.z - localMin.z;
-    if (r > 0.88f) return localMin.z + h * 0.20f;  // outer lip
-    if (r > 0.62f) return localMin.z + h * 0.42f;  // mid step
-    if (r > 0.36f) return localMin.z + h * 0.66f;  // inner step
-    return localMin.z + h * 0.90f;                 // center/top approach
+    if (model.collisionSteppedFountain) {
+        if (r > 0.88f) return localMin.z + h * 0.20f;  // outer lip
+        if (r > 0.62f) return localMin.z + h * 0.42f;  // mid step
+        if (r > 0.36f) return localMin.z + h * 0.66f;  // inner step
+        return localMin.z + h * 0.90f;                 // center/top approach
+    }
+
+    // Low square curb/planter profile:
+    // use edge distance (not radial) so corner blocks don't become too low and
+    // clip-through at diagonals.
+    float edge = std::max(std::abs(nx), std::abs(ny));
+    if (edge > 0.92f) return localMin.z + h * 0.10f;
+    if (edge > 0.72f) return localMin.z + h * 0.46f;
+    return localMin.z + h * 0.74f;
 }
 
 bool segmentIntersectsAABB(const glm::vec3& from, const glm::vec3& to,
@@ -301,12 +318,6 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
 
     M2ModelGPU gpuModel;
     gpuModel.name = model.name;
-    {
-        std::string lowerName = model.name;
-        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        gpuModel.collisionSteppedFountain = (lowerName.find("fountain") != std::string::npos);
-    }
     // Use tight bounds from actual vertices for collision/camera occlusion.
     // Header bounds in some M2s are overly conservative.
     glm::vec3 tightMin( std::numeric_limits<float>::max());
@@ -314,6 +325,55 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
     for (const auto& v : model.vertices) {
         tightMin = glm::min(tightMin, v.position);
         tightMax = glm::max(tightMax, v.position);
+    }
+    {
+        std::string lowerName = model.name;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        gpuModel.collisionSteppedFountain = (lowerName.find("fountain") != std::string::npos);
+
+        glm::vec3 dims = tightMax - tightMin;
+        float horiz = std::max(dims.x, dims.y);
+        float vert = std::max(0.0f, dims.z);
+        bool lowWideShape = (horiz > 1.4f && vert > 0.2f && vert < horiz * 0.70f);
+        bool likelyCurbName =
+            (lowerName.find("planter") != std::string::npos) ||
+            (lowerName.find("curb") != std::string::npos) ||
+            (lowerName.find("base") != std::string::npos) ||
+            (lowerName.find("ring") != std::string::npos) ||
+            (lowerName.find("well") != std::string::npos);
+        bool knownStormwindPlanter =
+            (lowerName.find("stormwindplanter") != std::string::npos) ||
+            (lowerName.find("stormwindwindowplanter") != std::string::npos);
+        bool lowPlatformShape = (horiz > 1.8f && vert > 0.2f && vert < 1.8f);
+        gpuModel.collisionSteppedLowPlatform = (!gpuModel.collisionSteppedFountain) &&
+                                               (knownStormwindPlanter ||
+                                                (likelyCurbName && (lowPlatformShape || lowWideShape)));
+
+        bool isPlanter = (lowerName.find("planter") != std::string::npos);
+        bool foliageName =
+            (lowerName.find("bush") != std::string::npos) ||
+            (lowerName.find("grass") != std::string::npos) ||
+            ((lowerName.find("plant") != std::string::npos) && !isPlanter) ||
+            (lowerName.find("flower") != std::string::npos) ||
+            (lowerName.find("shrub") != std::string::npos) ||
+            (lowerName.find("fern") != std::string::npos) ||
+            (lowerName.find("vine") != std::string::npos);
+        bool canopyLike =
+            (lowerName.find("canopy") != std::string::npos) ||
+            (lowerName.find("leaf") != std::string::npos) ||
+            (lowerName.find("leaves") != std::string::npos);
+        bool treeLike = (lowerName.find("tree") != std::string::npos);
+        bool hardTreePart =
+            (lowerName.find("trunk") != std::string::npos) ||
+            (lowerName.find("stump") != std::string::npos) ||
+            (lowerName.find("log") != std::string::npos);
+        bool softTree = treeLike && !hardTreePart && (canopyLike || vert > horiz * 1.35f);
+        bool smallSoftShape = (horiz < 2.2f && vert < 2.4f);
+        bool mediumFoliageShape = (horiz < 4.5f && vert < 4.5f);
+        bool forceSolidCurb = gpuModel.collisionSteppedLowPlatform || knownStormwindPlanter || likelyCurbName;
+        gpuModel.collisionNoBlock = ((((foliageName && smallSoftShape) || (foliageName && mediumFoliageShape)) || softTree) &&
+                                     !forceSolidCurb);
     }
     gpuModel.boundMin = tightMin;
     gpuModel.boundMax = tightMax;
@@ -808,6 +868,7 @@ std::optional<float> M2Renderer::getFloorHeight(float glX, float glY, float glZ)
         if (instance.scale <= 0.001f) continue;
 
         const M2ModelGPU& model = it->second;
+        if (model.collisionNoBlock) continue;
         glm::vec3 localMin, localMax;
         getTightCollisionBounds(model, localMin, localMax);
 
@@ -824,8 +885,9 @@ std::optional<float> M2Renderer::getFloorHeight(float glX, float glY, float glZ)
         glm::vec3 localTop(localPos.x, localPos.y, localTopZ);
         glm::vec3 worldTop = glm::vec3(instance.modelMatrix * glm::vec4(localTop, 1.0f));
 
-        // Reachability filter: only consider floors slightly above current feet.
-        if (worldTop.z > glZ + 1.0f) continue;
+        // Reachability filter: allow a bit more climb for stepped low platforms.
+        float maxStepUp = model.collisionSteppedLowPlatform ? 1.8f : 1.0f;
+        if (worldTop.z > glZ + maxStepUp) continue;
 
         if (!bestFloor || worldTop.z > *bestFloor) {
             bestFloor = worldTop.z;
@@ -865,6 +927,7 @@ bool M2Renderer::checkCollision(const glm::vec3& from, const glm::vec3& to,
         if (it == models.end()) continue;
 
         const M2ModelGPU& model = it->second;
+        if (model.collisionNoBlock) continue;
         if (instance.scale <= 0.001f) continue;
 
         glm::vec3 localFrom = glm::vec3(instance.invModelMatrix * glm::vec4(from, 1.0f));
@@ -885,9 +948,13 @@ bool M2Renderer::checkCollision(const glm::vec3& from, const glm::vec3& to,
 
         // Swept hard clamp for taller blockers only.
         // Low/stepable objects should be climbable and not "shove" the player off.
-        constexpr float MAX_STEP_UP = 1.20f;
-        bool stepableLowObject = (effectiveTop <= localFrom.z + MAX_STEP_UP);
-        if (!stepableLowObject) {
+        float maxStepUp = model.collisionSteppedLowPlatform ? 2.0f : 1.20f;
+        bool stepableLowObject = (effectiveTop <= localFrom.z + maxStepUp);
+        bool climbingAttempt = (localPos.z > localFrom.z + 0.18f);
+        bool nearTop = (localFrom.z >= effectiveTop - 0.30f);
+        bool climbingTowardTop = climbingAttempt && (localFrom.z + 0.35f >= effectiveTop);
+        bool forceHardLateral = model.collisionSteppedLowPlatform && !nearTop && !climbingTowardTop;
+        if (!stepableLowObject || forceHardLateral) {
             float tEnter = 0.0f;
             glm::vec3 sweepMax = localMax;
             sweepMax.z = std::min(sweepMax.z, effectiveTop);
@@ -913,9 +980,16 @@ bool M2Renderer::checkCollision(const glm::vec3& from, const glm::vec3& to,
         float pushFront = localMax.y - localPos.y;
 
         float minPush = std::min({pushLeft, pushRight, pushBack, pushFront});
+        if (model.collisionSteppedLowPlatform && nearTop && stepableLowObject) {
+            // Already on/near top surface: don't apply lateral push that ejects
+            // the player from the curb when landing.
+            continue;
+        }
         // Gentle fallback push for overlapping cases.
         float pushAmount;
-        if (stepableLowObject) {
+        if (model.collisionSteppedLowPlatform) {
+            pushAmount = std::clamp(minPush * 0.18f, 0.006f, 0.020f);
+        } else if (stepableLowObject) {
             pushAmount = std::clamp(minPush * 0.12f, 0.002f, 0.015f);
         } else {
             pushAmount = std::clamp(minPush * 0.28f, 0.010f, 0.045f);
@@ -968,6 +1042,7 @@ float M2Renderer::raycastBoundingBoxes(const glm::vec3& origin, const glm::vec3&
         if (it == models.end()) continue;
 
         const M2ModelGPU& model = it->second;
+        if (model.collisionNoBlock) continue;
         glm::vec3 localMin, localMax;
         getTightCollisionBounds(model, localMin, localMax);
         // Skip tiny doodads for camera occlusion; they cause jitter and false hits.
