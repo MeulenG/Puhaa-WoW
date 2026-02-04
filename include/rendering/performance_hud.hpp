@@ -72,7 +72,7 @@ private:
      */
     void calculateFPS();
 
-    bool enabled = true;  // Enabled by default, press F1 to toggle
+    bool enabled = false;  // Disabled by default, press F1 to toggle
     Position position = Position::TOP_LEFT;
 
     // Section visibility

@@ -3,10 +3,13 @@
 #include "network/packet.hpp"
 #include "game/opcodes.hpp"
 #include "game/entity.hpp"
+#include "game/spell_defines.hpp"
+#include "game/group_defines.hpp"
 #include <vector>
 #include <cstdint>
 #include <string>
 #include <map>
+#include <unordered_map>
 
 namespace wowee {
 namespace game {
@@ -397,6 +400,14 @@ public:
      */
     static bool parse(network::Packet& packet, UpdateObjectData& data);
 
+    /**
+     * Read packed GUID from packet
+     *
+     * @param packet Packet to read from
+     * @return GUID value
+     */
+    static uint64_t readPackedGuid(network::Packet& packet);
+
 private:
     /**
      * Parse a single update block
@@ -424,14 +435,6 @@ private:
      * @return true if successful
      */
     static bool parseUpdateFields(network::Packet& packet, UpdateBlock& block);
-
-    /**
-     * Read packed GUID from packet
-     *
-     * @param packet Packet to read from
-     * @return GUID value
-     */
-    static uint64_t readPackedGuid(network::Packet& packet);
 };
 
 /**
@@ -561,6 +564,522 @@ public:
  * Get human-readable string for chat type
  */
 const char* getChatTypeString(ChatType type);
+
+// ============================================================
+// Phase 1: Foundation — Targeting, Name Queries
+// ============================================================
+
+/** CMSG_SET_SELECTION packet builder */
+class SetSelectionPacket {
+public:
+    static network::Packet build(uint64_t targetGuid);
+};
+
+/** CMSG_SET_ACTIVE_MOVER packet builder */
+class SetActiveMoverPacket {
+public:
+    static network::Packet build(uint64_t guid);
+};
+
+/** CMSG_NAME_QUERY packet builder */
+class NameQueryPacket {
+public:
+    static network::Packet build(uint64_t playerGuid);
+};
+
+/** SMSG_NAME_QUERY_RESPONSE data */
+struct NameQueryResponseData {
+    uint64_t guid = 0;
+    uint8_t found = 1;        // 0 = found, 1 = not found
+    std::string name;
+    std::string realmName;
+    uint8_t race = 0;
+    uint8_t gender = 0;
+    uint8_t classId = 0;
+
+    bool isValid() const { return found == 0 && !name.empty(); }
+};
+
+/** SMSG_NAME_QUERY_RESPONSE parser */
+class NameQueryResponseParser {
+public:
+    static bool parse(network::Packet& packet, NameQueryResponseData& data);
+};
+
+/** CMSG_CREATURE_QUERY packet builder */
+class CreatureQueryPacket {
+public:
+    static network::Packet build(uint32_t entry, uint64_t guid);
+};
+
+/** SMSG_CREATURE_QUERY_RESPONSE data */
+struct CreatureQueryResponseData {
+    uint32_t entry = 0;
+    std::string name;
+    std::string subName;
+    std::string iconName;
+    uint32_t typeFlags = 0;
+    uint32_t creatureType = 0;
+    uint32_t family = 0;
+    uint32_t rank = 0;         // 0=Normal, 1=Elite, 2=Rare Elite, 3=Boss, 4=Rare
+
+    bool isValid() const { return entry != 0 && !name.empty(); }
+};
+
+/** SMSG_CREATURE_QUERY_RESPONSE parser */
+class CreatureQueryResponseParser {
+public:
+    static bool parse(network::Packet& packet, CreatureQueryResponseData& data);
+};
+
+// ============================================================
+// Phase 2: Combat Core
+// ============================================================
+
+/** CMSG_ATTACKSWING packet builder */
+class AttackSwingPacket {
+public:
+    static network::Packet build(uint64_t targetGuid);
+};
+
+/** CMSG_ATTACKSTOP packet builder */
+class AttackStopPacket {
+public:
+    static network::Packet build();
+};
+
+/** SMSG_ATTACKSTART data */
+struct AttackStartData {
+    uint64_t attackerGuid = 0;
+    uint64_t victimGuid = 0;
+    bool isValid() const { return attackerGuid != 0 && victimGuid != 0; }
+};
+
+class AttackStartParser {
+public:
+    static bool parse(network::Packet& packet, AttackStartData& data);
+};
+
+/** SMSG_ATTACKSTOP data */
+struct AttackStopData {
+    uint64_t attackerGuid = 0;
+    uint64_t victimGuid = 0;
+    uint32_t unknown = 0;
+    bool isValid() const { return true; }
+};
+
+class AttackStopParser {
+public:
+    static bool parse(network::Packet& packet, AttackStopData& data);
+};
+
+/** Sub-damage entry for melee hits */
+struct SubDamage {
+    uint32_t schoolMask = 0;
+    float damage = 0.0f;
+    uint32_t intDamage = 0;
+    uint32_t absorbed = 0;
+    uint32_t resisted = 0;
+};
+
+/** SMSG_ATTACKERSTATEUPDATE data */
+struct AttackerStateUpdateData {
+    uint32_t hitInfo = 0;
+    uint64_t attackerGuid = 0;
+    uint64_t targetGuid = 0;
+    int32_t totalDamage = 0;
+    uint8_t subDamageCount = 0;
+    std::vector<SubDamage> subDamages;
+    uint32_t victimState = 0;    // 0=hit, 1=dodge, 2=parry, 3=interrupt, 4=block, etc.
+    int32_t overkill = -1;
+    uint32_t blocked = 0;
+
+    bool isValid() const { return attackerGuid != 0; }
+    bool isCrit() const { return (hitInfo & 0x200) != 0; }
+    bool isMiss() const { return (hitInfo & 0x10) != 0; }
+};
+
+class AttackerStateUpdateParser {
+public:
+    static bool parse(network::Packet& packet, AttackerStateUpdateData& data);
+};
+
+/** SMSG_SPELLNONMELEEDAMAGELOG data (simplified) */
+struct SpellDamageLogData {
+    uint64_t targetGuid = 0;
+    uint64_t attackerGuid = 0;
+    uint32_t spellId = 0;
+    uint32_t damage = 0;
+    uint32_t overkill = 0;
+    uint8_t schoolMask = 0;
+    uint32_t absorbed = 0;
+    uint32_t resisted = 0;
+    bool isCrit = false;
+
+    bool isValid() const { return spellId != 0; }
+};
+
+class SpellDamageLogParser {
+public:
+    static bool parse(network::Packet& packet, SpellDamageLogData& data);
+};
+
+/** SMSG_SPELLHEALLOG data (simplified) */
+struct SpellHealLogData {
+    uint64_t targetGuid = 0;
+    uint64_t casterGuid = 0;
+    uint32_t spellId = 0;
+    uint32_t heal = 0;
+    uint32_t overheal = 0;
+    uint32_t absorbed = 0;
+    bool isCrit = false;
+
+    bool isValid() const { return spellId != 0; }
+};
+
+class SpellHealLogParser {
+public:
+    static bool parse(network::Packet& packet, SpellHealLogData& data);
+};
+
+// ============================================================
+// Phase 3: Spells, Action Bar, Auras
+// ============================================================
+
+/** SMSG_INITIAL_SPELLS data */
+struct InitialSpellsData {
+    uint8_t talentSpec = 0;
+    std::vector<uint32_t> spellIds;
+    std::vector<SpellCooldownEntry> cooldowns;
+
+    bool isValid() const { return true; }
+};
+
+class InitialSpellsParser {
+public:
+    static bool parse(network::Packet& packet, InitialSpellsData& data);
+};
+
+/** CMSG_CAST_SPELL packet builder */
+class CastSpellPacket {
+public:
+    static network::Packet build(uint32_t spellId, uint64_t targetGuid, uint8_t castCount);
+};
+
+/** CMSG_CANCEL_CAST packet builder */
+class CancelCastPacket {
+public:
+    static network::Packet build(uint32_t spellId);
+};
+
+/** CMSG_CANCEL_AURA packet builder */
+class CancelAuraPacket {
+public:
+    static network::Packet build(uint32_t spellId);
+};
+
+/** SMSG_CAST_FAILED data */
+struct CastFailedData {
+    uint8_t castCount = 0;
+    uint32_t spellId = 0;
+    uint8_t result = 0;
+
+    bool isValid() const { return spellId != 0; }
+};
+
+class CastFailedParser {
+public:
+    static bool parse(network::Packet& packet, CastFailedData& data);
+};
+
+/** SMSG_SPELL_START data (simplified) */
+struct SpellStartData {
+    uint64_t casterGuid = 0;
+    uint64_t casterUnit = 0;
+    uint8_t castCount = 0;
+    uint32_t spellId = 0;
+    uint32_t castFlags = 0;
+    uint32_t castTime = 0;
+    uint64_t targetGuid = 0;
+
+    bool isValid() const { return spellId != 0; }
+};
+
+class SpellStartParser {
+public:
+    static bool parse(network::Packet& packet, SpellStartData& data);
+};
+
+/** SMSG_SPELL_GO data (simplified) */
+struct SpellGoData {
+    uint64_t casterGuid = 0;
+    uint64_t casterUnit = 0;
+    uint8_t castCount = 0;
+    uint32_t spellId = 0;
+    uint32_t castFlags = 0;
+    uint8_t hitCount = 0;
+    std::vector<uint64_t> hitTargets;
+    uint8_t missCount = 0;
+
+    bool isValid() const { return spellId != 0; }
+};
+
+class SpellGoParser {
+public:
+    static bool parse(network::Packet& packet, SpellGoData& data);
+};
+
+/** SMSG_AURA_UPDATE / SMSG_AURA_UPDATE_ALL data */
+struct AuraUpdateData {
+    uint64_t guid = 0;
+    std::vector<std::pair<uint8_t, AuraSlot>> updates; // slot index + aura data
+
+    bool isValid() const { return true; }
+};
+
+class AuraUpdateParser {
+public:
+    static bool parse(network::Packet& packet, AuraUpdateData& data, bool isAll);
+};
+
+/** SMSG_SPELL_COOLDOWN data */
+struct SpellCooldownData {
+    uint64_t guid = 0;
+    uint8_t flags = 0;
+    std::vector<std::pair<uint32_t, uint32_t>> cooldowns; // spellId, cooldownMs
+
+    bool isValid() const { return true; }
+};
+
+class SpellCooldownParser {
+public:
+    static bool parse(network::Packet& packet, SpellCooldownData& data);
+};
+
+// ============================================================
+// Phase 4: Group/Party System
+// ============================================================
+
+/** CMSG_GROUP_INVITE packet builder */
+class GroupInvitePacket {
+public:
+    static network::Packet build(const std::string& playerName);
+};
+
+/** SMSG_GROUP_INVITE data */
+struct GroupInviteResponseData {
+    uint8_t canAccept = 0;
+    std::string inviterName;
+
+    bool isValid() const { return !inviterName.empty(); }
+};
+
+class GroupInviteResponseParser {
+public:
+    static bool parse(network::Packet& packet, GroupInviteResponseData& data);
+};
+
+/** CMSG_GROUP_ACCEPT packet builder */
+class GroupAcceptPacket {
+public:
+    static network::Packet build();
+};
+
+/** CMSG_GROUP_DECLINE packet builder */
+class GroupDeclinePacket {
+public:
+    static network::Packet build();
+};
+
+/** CMSG_GROUP_DISBAND (leave party) packet builder */
+class GroupDisbandPacket {
+public:
+    static network::Packet build();
+};
+
+/** SMSG_GROUP_LIST parser */
+class GroupListParser {
+public:
+    static bool parse(network::Packet& packet, GroupListData& data);
+};
+
+/** SMSG_PARTY_COMMAND_RESULT data */
+struct PartyCommandResultData {
+    PartyCommand command;
+    std::string name;
+    PartyResult result;
+
+    bool isValid() const { return true; }
+};
+
+class PartyCommandResultParser {
+public:
+    static bool parse(network::Packet& packet, PartyCommandResultData& data);
+};
+
+/** SMSG_GROUP_DECLINE data */
+struct GroupDeclineData {
+    std::string playerName;
+    bool isValid() const { return !playerName.empty(); }
+};
+
+class GroupDeclineResponseParser {
+public:
+    static bool parse(network::Packet& packet, GroupDeclineData& data);
+};
+
+// ============================================================
+// Phase 5: Loot System
+// ============================================================
+
+/** Loot item entry */
+struct LootItem {
+    uint8_t slotIndex = 0;
+    uint32_t itemId = 0;
+    uint32_t count = 0;
+    uint32_t displayInfoId = 0;
+    uint32_t randomSuffix = 0;
+    uint32_t randomPropertyId = 0;
+    uint8_t lootSlotType = 0;
+};
+
+/** SMSG_LOOT_RESPONSE data */
+struct LootResponseData {
+    uint64_t lootGuid = 0;
+    uint8_t lootType = 0;
+    uint32_t gold = 0;           // In copper
+    std::vector<LootItem> items;
+
+    bool isValid() const { return true; }
+    uint32_t getGold() const { return gold / 10000; }
+    uint32_t getSilver() const { return (gold / 100) % 100; }
+    uint32_t getCopper() const { return gold % 100; }
+};
+
+/** CMSG_LOOT packet builder */
+class LootPacket {
+public:
+    static network::Packet build(uint64_t targetGuid);
+};
+
+/** CMSG_AUTOSTORE_LOOT_ITEM packet builder */
+class AutostoreLootItemPacket {
+public:
+    static network::Packet build(uint8_t slotIndex);
+};
+
+/** CMSG_LOOT_RELEASE packet builder */
+class LootReleasePacket {
+public:
+    static network::Packet build(uint64_t lootGuid);
+};
+
+/** SMSG_LOOT_RESPONSE parser */
+class LootResponseParser {
+public:
+    static bool parse(network::Packet& packet, LootResponseData& data);
+};
+
+// ============================================================
+// Phase 5: NPC Gossip
+// ============================================================
+
+/** Gossip menu option */
+struct GossipOption {
+    uint32_t id = 0;
+    uint8_t icon = 0;          // 0=chat, 1=vendor, 2=taxi, 3=trainer, etc.
+    bool isCoded = false;
+    uint32_t boxMoney = 0;
+    std::string text;
+    std::string boxText;
+};
+
+/** Gossip quest item */
+struct GossipQuestItem {
+    uint32_t questId = 0;
+    uint32_t questIcon = 0;
+    int32_t questLevel = 0;
+    uint32_t questFlags = 0;
+    uint8_t isRepeatable = 0;
+    std::string title;
+};
+
+/** SMSG_GOSSIP_MESSAGE data */
+struct GossipMessageData {
+    uint64_t npcGuid = 0;
+    uint32_t menuId = 0;
+    uint32_t titleTextId = 0;
+    std::vector<GossipOption> options;
+    std::vector<GossipQuestItem> quests;
+
+    bool isValid() const { return true; }
+};
+
+/** CMSG_GOSSIP_HELLO packet builder */
+class GossipHelloPacket {
+public:
+    static network::Packet build(uint64_t npcGuid);
+};
+
+/** CMSG_GOSSIP_SELECT_OPTION packet builder */
+class GossipSelectOptionPacket {
+public:
+    static network::Packet build(uint64_t npcGuid, uint32_t optionId, const std::string& code = "");
+};
+
+/** SMSG_GOSSIP_MESSAGE parser */
+class GossipMessageParser {
+public:
+    static bool parse(network::Packet& packet, GossipMessageData& data);
+};
+
+// ============================================================
+// Phase 5: Vendor
+// ============================================================
+
+/** Vendor item entry */
+struct VendorItem {
+    uint32_t slot = 0;
+    uint32_t itemId = 0;
+    uint32_t displayInfoId = 0;
+    int32_t maxCount = -1;       // -1 = unlimited
+    uint32_t buyPrice = 0;       // In copper
+    uint32_t durability = 0;
+    uint32_t stackCount = 0;
+    uint32_t extendedCost = 0;
+};
+
+/** SMSG_LIST_INVENTORY data */
+struct ListInventoryData {
+    uint64_t vendorGuid = 0;
+    std::vector<VendorItem> items;
+
+    bool isValid() const { return true; }
+};
+
+/** CMSG_LIST_INVENTORY packet builder */
+class ListInventoryPacket {
+public:
+    static network::Packet build(uint64_t npcGuid);
+};
+
+/** CMSG_BUY_ITEM packet builder */
+class BuyItemPacket {
+public:
+    static network::Packet build(uint64_t vendorGuid, uint32_t itemId, uint32_t slot, uint8_t count);
+};
+
+/** CMSG_SELL_ITEM packet builder */
+class SellItemPacket {
+public:
+    static network::Packet build(uint64_t vendorGuid, uint64_t itemGuid, uint8_t count);
+};
+
+/** SMSG_LIST_INVENTORY parser */
+class ListInventoryParser {
+public:
+    static bool parse(network::Packet& packet, ListInventoryData& data);
+};
 
 } // namespace game
 } // namespace wowee

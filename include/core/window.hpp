@@ -35,6 +35,7 @@ public:
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }
+    void setSize(int w, int h) { width = w; height = h; }
     float getAspectRatio() const { return static_cast<float>(width) / height; }
 
     SDL_Window* getSDLWindow() const { return window; }

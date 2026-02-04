@@ -861,5 +861,642 @@ const char* getChatTypeString(ChatType type) {
     }
 }
 
+// ============================================================
+// Phase 1: Foundation — Targeting, Name Queries
+// ============================================================
+
+network::Packet SetSelectionPacket::build(uint64_t targetGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_SET_SELECTION));
+    packet.writeUInt64(targetGuid);
+    LOG_DEBUG("Built CMSG_SET_SELECTION: target=0x", std::hex, targetGuid, std::dec);
+    return packet;
+}
+
+network::Packet SetActiveMoverPacket::build(uint64_t guid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_SET_ACTIVE_MOVER));
+    packet.writeUInt64(guid);
+    LOG_DEBUG("Built CMSG_SET_ACTIVE_MOVER: guid=0x", std::hex, guid, std::dec);
+    return packet;
+}
+
+network::Packet NameQueryPacket::build(uint64_t playerGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_NAME_QUERY));
+    packet.writeUInt64(playerGuid);
+    LOG_DEBUG("Built CMSG_NAME_QUERY: guid=0x", std::hex, playerGuid, std::dec);
+    return packet;
+}
+
+bool NameQueryResponseParser::parse(network::Packet& packet, NameQueryResponseData& data) {
+    // 3.3.5a: packedGuid, uint8 found
+    // If found==0: CString name, CString realmName, uint8 race, uint8 gender, uint8 classId
+    data.guid = UpdateObjectParser::readPackedGuid(packet);
+    data.found = packet.readUInt8();
+
+    if (data.found != 0) {
+        LOG_DEBUG("Name query: player not found for GUID 0x", std::hex, data.guid, std::dec);
+        return true; // Valid response, just not found
+    }
+
+    data.name = packet.readString();
+    data.realmName = packet.readString();
+    data.race = packet.readUInt8();
+    data.gender = packet.readUInt8();
+    data.classId = packet.readUInt8();
+
+    LOG_INFO("Name query response: ", data.name, " (race=", (int)data.race,
+             " class=", (int)data.classId, ")");
+    return true;
+}
+
+network::Packet CreatureQueryPacket::build(uint32_t entry, uint64_t guid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_CREATURE_QUERY));
+    packet.writeUInt32(entry);
+    packet.writeUInt64(guid);
+    LOG_DEBUG("Built CMSG_CREATURE_QUERY: entry=", entry, " guid=0x", std::hex, guid, std::dec);
+    return packet;
+}
+
+bool CreatureQueryResponseParser::parse(network::Packet& packet, CreatureQueryResponseData& data) {
+    data.entry = packet.readUInt32();
+
+    // High bit set means creature not found
+    if (data.entry & 0x80000000) {
+        data.entry &= ~0x80000000;
+        LOG_DEBUG("Creature query: entry ", data.entry, " not found");
+        data.name = "";
+        return true;
+    }
+
+    // 4 name strings (only first is usually populated)
+    data.name = packet.readString();
+    packet.readString(); // name2
+    packet.readString(); // name3
+    packet.readString(); // name4
+    data.subName = packet.readString();
+    data.iconName = packet.readString();
+    data.typeFlags = packet.readUInt32();
+    data.creatureType = packet.readUInt32();
+    data.family = packet.readUInt32();
+    data.rank = packet.readUInt32();
+
+    // Skip remaining fields (kill credits, display IDs, modifiers, quest items, etc.)
+    // We've got what we need for display purposes
+
+    LOG_INFO("Creature query response: ", data.name, " (type=", data.creatureType,
+             " rank=", data.rank, ")");
+    return true;
+}
+
+// ============================================================
+// Phase 2: Combat Core
+// ============================================================
+
+network::Packet AttackSwingPacket::build(uint64_t targetGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_ATTACKSWING));
+    packet.writeUInt64(targetGuid);
+    LOG_DEBUG("Built CMSG_ATTACKSWING: target=0x", std::hex, targetGuid, std::dec);
+    return packet;
+}
+
+network::Packet AttackStopPacket::build() {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_ATTACKSTOP));
+    LOG_DEBUG("Built CMSG_ATTACKSTOP");
+    return packet;
+}
+
+bool AttackStartParser::parse(network::Packet& packet, AttackStartData& data) {
+    if (packet.getSize() < 16) return false;
+    data.attackerGuid = packet.readUInt64();
+    data.victimGuid = packet.readUInt64();
+    LOG_INFO("Attack started: 0x", std::hex, data.attackerGuid,
+             " -> 0x", data.victimGuid, std::dec);
+    return true;
+}
+
+bool AttackStopParser::parse(network::Packet& packet, AttackStopData& data) {
+    data.attackerGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.victimGuid = UpdateObjectParser::readPackedGuid(packet);
+    if (packet.getReadPos() < packet.getSize()) {
+        data.unknown = packet.readUInt32();
+    }
+    LOG_INFO("Attack stopped: 0x", std::hex, data.attackerGuid, std::dec);
+    return true;
+}
+
+bool AttackerStateUpdateParser::parse(network::Packet& packet, AttackerStateUpdateData& data) {
+    data.hitInfo = packet.readUInt32();
+    data.attackerGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.targetGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.totalDamage = static_cast<int32_t>(packet.readUInt32());
+    data.subDamageCount = packet.readUInt8();
+
+    for (uint8_t i = 0; i < data.subDamageCount; ++i) {
+        SubDamage sub;
+        sub.schoolMask = packet.readUInt32();
+        sub.damage = packet.readFloat();
+        sub.intDamage = packet.readUInt32();
+        sub.absorbed = packet.readUInt32();
+        sub.resisted = packet.readUInt32();
+        data.subDamages.push_back(sub);
+    }
+
+    data.victimState = packet.readUInt32();
+    data.overkill = static_cast<int32_t>(packet.readUInt32());
+
+    // Read blocked amount
+    if (packet.getReadPos() < packet.getSize()) {
+        data.blocked = packet.readUInt32();
+    }
+
+    LOG_INFO("Melee hit: ", data.totalDamage, " damage",
+             data.isCrit() ? " (CRIT)" : "",
+             data.isMiss() ? " (MISS)" : "");
+    return true;
+}
+
+bool SpellDamageLogParser::parse(network::Packet& packet, SpellDamageLogData& data) {
+    data.targetGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.attackerGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.spellId = packet.readUInt32();
+    data.damage = packet.readUInt32();
+    data.overkill = packet.readUInt32();
+    data.schoolMask = packet.readUInt8();
+    data.absorbed = packet.readUInt32();
+    data.resisted = packet.readUInt32();
+
+    // Skip remaining fields
+    uint8_t periodicLog = packet.readUInt8();
+    (void)periodicLog;
+    packet.readUInt8(); // unused
+    packet.readUInt32(); // blocked
+    uint32_t flags = packet.readUInt32();
+    (void)flags;
+    // Check crit flag
+    data.isCrit = (flags & 0x02) != 0;
+
+    LOG_INFO("Spell damage: spellId=", data.spellId, " dmg=", data.damage,
+             data.isCrit ? " CRIT" : "");
+    return true;
+}
+
+bool SpellHealLogParser::parse(network::Packet& packet, SpellHealLogData& data) {
+    data.targetGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.casterGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.spellId = packet.readUInt32();
+    data.heal = packet.readUInt32();
+    data.overheal = packet.readUInt32();
+    data.absorbed = packet.readUInt32();
+    uint8_t critFlag = packet.readUInt8();
+    data.isCrit = (critFlag != 0);
+
+    LOG_INFO("Spell heal: spellId=", data.spellId, " heal=", data.heal,
+             data.isCrit ? " CRIT" : "");
+    return true;
+}
+
+// ============================================================
+// Phase 3: Spells, Action Bar, Auras
+// ============================================================
+
+bool InitialSpellsParser::parse(network::Packet& packet, InitialSpellsData& data) {
+    data.talentSpec = packet.readUInt8();
+    uint16_t spellCount = packet.readUInt16();
+
+    data.spellIds.reserve(spellCount);
+    for (uint16_t i = 0; i < spellCount; ++i) {
+        uint32_t spellId = packet.readUInt32();
+        packet.readUInt16(); // unknown (always 0)
+        if (spellId != 0) {
+            data.spellIds.push_back(spellId);
+        }
+    }
+
+    uint16_t cooldownCount = packet.readUInt16();
+    data.cooldowns.reserve(cooldownCount);
+    for (uint16_t i = 0; i < cooldownCount; ++i) {
+        SpellCooldownEntry entry;
+        entry.spellId = packet.readUInt32();
+        entry.itemId = packet.readUInt16();
+        entry.categoryId = packet.readUInt16();
+        entry.cooldownMs = packet.readUInt32();
+        entry.categoryCooldownMs = packet.readUInt32();
+        data.cooldowns.push_back(entry);
+    }
+
+    LOG_INFO("Initial spells: ", data.spellIds.size(), " spells, ",
+             data.cooldowns.size(), " cooldowns");
+    return true;
+}
+
+network::Packet CastSpellPacket::build(uint32_t spellId, uint64_t targetGuid, uint8_t castCount) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_CAST_SPELL));
+    packet.writeUInt8(castCount);
+    packet.writeUInt32(spellId);
+    packet.writeUInt8(0x00); // castFlags = 0 for normal cast
+
+    // SpellCastTargets
+    if (targetGuid != 0) {
+        packet.writeUInt32(0x02); // TARGET_FLAG_UNIT
+
+        // Write packed GUID
+        uint8_t mask = 0;
+        uint8_t bytes[8];
+        int byteCount = 0;
+        uint64_t g = targetGuid;
+        for (int i = 0; i < 8; ++i) {
+            uint8_t b = g & 0xFF;
+            if (b != 0) {
+                mask |= (1 << i);
+                bytes[byteCount++] = b;
+            }
+            g >>= 8;
+        }
+        packet.writeUInt8(mask);
+        for (int i = 0; i < byteCount; ++i) {
+            packet.writeUInt8(bytes[i]);
+        }
+    } else {
+        packet.writeUInt32(0x00); // TARGET_FLAG_SELF
+    }
+
+    LOG_DEBUG("Built CMSG_CAST_SPELL: spell=", spellId, " target=0x",
+              std::hex, targetGuid, std::dec);
+    return packet;
+}
+
+network::Packet CancelCastPacket::build(uint32_t spellId) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_CANCEL_CAST));
+    packet.writeUInt32(0); // sequence
+    packet.writeUInt32(spellId);
+    return packet;
+}
+
+network::Packet CancelAuraPacket::build(uint32_t spellId) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_CANCEL_AURA));
+    packet.writeUInt32(spellId);
+    return packet;
+}
+
+bool CastFailedParser::parse(network::Packet& packet, CastFailedData& data) {
+    data.castCount = packet.readUInt8();
+    data.spellId = packet.readUInt32();
+    data.result = packet.readUInt8();
+    LOG_INFO("Cast failed: spell=", data.spellId, " result=", (int)data.result);
+    return true;
+}
+
+bool SpellStartParser::parse(network::Packet& packet, SpellStartData& data) {
+    data.casterGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.casterUnit = UpdateObjectParser::readPackedGuid(packet);
+    data.castCount = packet.readUInt8();
+    data.spellId = packet.readUInt32();
+    data.castFlags = packet.readUInt32();
+    data.castTime = packet.readUInt32();
+
+    // Read target flags and target (simplified)
+    if (packet.getReadPos() < packet.getSize()) {
+        uint32_t targetFlags = packet.readUInt32();
+        if (targetFlags & 0x02) { // TARGET_FLAG_UNIT
+            data.targetGuid = UpdateObjectParser::readPackedGuid(packet);
+        }
+    }
+
+    LOG_INFO("Spell start: spell=", data.spellId, " castTime=", data.castTime, "ms");
+    return true;
+}
+
+bool SpellGoParser::parse(network::Packet& packet, SpellGoData& data) {
+    data.casterGuid = UpdateObjectParser::readPackedGuid(packet);
+    data.casterUnit = UpdateObjectParser::readPackedGuid(packet);
+    data.castCount = packet.readUInt8();
+    data.spellId = packet.readUInt32();
+    data.castFlags = packet.readUInt32();
+    // Timestamp in 3.3.5a
+    packet.readUInt32();
+
+    data.hitCount = packet.readUInt8();
+    data.hitTargets.reserve(data.hitCount);
+    for (uint8_t i = 0; i < data.hitCount; ++i) {
+        data.hitTargets.push_back(packet.readUInt64());
+    }
+
+    data.missCount = packet.readUInt8();
+    // Skip miss details for now
+
+    LOG_INFO("Spell go: spell=", data.spellId, " hits=", (int)data.hitCount,
+             " misses=", (int)data.missCount);
+    return true;
+}
+
+bool AuraUpdateParser::parse(network::Packet& packet, AuraUpdateData& data, bool isAll) {
+    data.guid = UpdateObjectParser::readPackedGuid(packet);
+
+    while (packet.getReadPos() < packet.getSize()) {
+        uint8_t slot = packet.readUInt8();
+        uint32_t spellId = packet.readUInt32();
+
+        AuraSlot aura;
+        if (spellId != 0) {
+            aura.spellId = spellId;
+            aura.flags = packet.readUInt8();
+            aura.level = packet.readUInt8();
+            aura.charges = packet.readUInt8();
+
+            if (!(aura.flags & 0x08)) { // NOT_CASTER flag
+                aura.casterGuid = UpdateObjectParser::readPackedGuid(packet);
+            }
+
+            if (aura.flags & 0x20) { // DURATION
+                aura.maxDurationMs = static_cast<int32_t>(packet.readUInt32());
+                aura.durationMs = static_cast<int32_t>(packet.readUInt32());
+            }
+
+            if (aura.flags & 0x40) { // EFFECT_AMOUNTS - skip
+                // 3 effect amounts
+                for (int i = 0; i < 3; ++i) {
+                    if (packet.getReadPos() < packet.getSize()) {
+                        packet.readUInt32();
+                    }
+                }
+            }
+        }
+
+        data.updates.push_back({slot, aura});
+
+        // For single update, only one entry
+        if (!isAll) break;
+    }
+
+    LOG_DEBUG("Aura update for 0x", std::hex, data.guid, std::dec,
+              ": ", data.updates.size(), " slots");
+    return true;
+}
+
+bool SpellCooldownParser::parse(network::Packet& packet, SpellCooldownData& data) {
+    data.guid = packet.readUInt64();
+    data.flags = packet.readUInt8();
+
+    while (packet.getReadPos() + 8 <= packet.getSize()) {
+        uint32_t spellId = packet.readUInt32();
+        uint32_t cooldownMs = packet.readUInt32();
+        data.cooldowns.push_back({spellId, cooldownMs});
+    }
+
+    LOG_DEBUG("Spell cooldowns: ", data.cooldowns.size(), " entries");
+    return true;
+}
+
+// ============================================================
+// Phase 4: Group/Party System
+// ============================================================
+
+network::Packet GroupInvitePacket::build(const std::string& playerName) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_GROUP_INVITE));
+    packet.writeString(playerName);
+    packet.writeUInt32(0); // unused
+    LOG_DEBUG("Built CMSG_GROUP_INVITE: ", playerName);
+    return packet;
+}
+
+bool GroupInviteResponseParser::parse(network::Packet& packet, GroupInviteResponseData& data) {
+    data.canAccept = packet.readUInt8();
+    data.inviterName = packet.readString();
+    LOG_INFO("Group invite from: ", data.inviterName, " (canAccept=", (int)data.canAccept, ")");
+    return true;
+}
+
+network::Packet GroupAcceptPacket::build() {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_GROUP_ACCEPT));
+    packet.writeUInt32(0); // unused in 3.3.5a
+    return packet;
+}
+
+network::Packet GroupDeclinePacket::build() {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_GROUP_DECLINE));
+    return packet;
+}
+
+network::Packet GroupDisbandPacket::build() {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_GROUP_DISBAND));
+    return packet;
+}
+
+bool GroupListParser::parse(network::Packet& packet, GroupListData& data) {
+    data.groupType = packet.readUInt8();
+    data.subGroup = packet.readUInt8();
+    data.flags = packet.readUInt8();
+    data.roles = packet.readUInt8();
+
+    // Skip LFG data if present
+    if (data.groupType & 0x04) {
+        packet.readUInt8(); // lfg state
+        packet.readUInt32(); // lfg entry
+        packet.readUInt8(); // lfg flags (3.3.5a may not have this)
+    }
+
+    packet.readUInt64(); // group GUID
+    packet.readUInt32(); // counter
+
+    data.memberCount = packet.readUInt32();
+    data.members.reserve(data.memberCount);
+
+    for (uint32_t i = 0; i < data.memberCount; ++i) {
+        GroupMember member;
+        member.name = packet.readString();
+        member.guid = packet.readUInt64();
+        member.isOnline = packet.readUInt8();
+        member.subGroup = packet.readUInt8();
+        member.flags = packet.readUInt8();
+        member.roles = packet.readUInt8();
+        data.members.push_back(member);
+    }
+
+    data.leaderGuid = packet.readUInt64();
+
+    if (data.memberCount > 0 && packet.getReadPos() < packet.getSize()) {
+        data.lootMethod = packet.readUInt8();
+        data.looterGuid = packet.readUInt64();
+        data.lootThreshold = packet.readUInt8();
+        data.difficultyId = packet.readUInt8();
+        data.raidDifficultyId = packet.readUInt8();
+        if (packet.getReadPos() < packet.getSize()) {
+            packet.readUInt8(); // unknown byte
+        }
+    }
+
+    LOG_INFO("Group list: ", data.memberCount, " members, leader=0x",
+             std::hex, data.leaderGuid, std::dec);
+    return true;
+}
+
+bool PartyCommandResultParser::parse(network::Packet& packet, PartyCommandResultData& data) {
+    data.command = static_cast<PartyCommand>(packet.readUInt32());
+    data.name = packet.readString();
+    data.result = static_cast<PartyResult>(packet.readUInt32());
+    LOG_INFO("Party command result: ", (int)data.result);
+    return true;
+}
+
+bool GroupDeclineResponseParser::parse(network::Packet& packet, GroupDeclineData& data) {
+    data.playerName = packet.readString();
+    LOG_INFO("Group decline from: ", data.playerName);
+    return true;
+}
+
+// ============================================================
+// Phase 5: Loot System
+// ============================================================
+
+network::Packet LootPacket::build(uint64_t targetGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_LOOT));
+    packet.writeUInt64(targetGuid);
+    LOG_DEBUG("Built CMSG_LOOT: target=0x", std::hex, targetGuid, std::dec);
+    return packet;
+}
+
+network::Packet AutostoreLootItemPacket::build(uint8_t slotIndex) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_AUTOSTORE_LOOT_ITEM));
+    packet.writeUInt8(slotIndex);
+    return packet;
+}
+
+network::Packet LootReleasePacket::build(uint64_t lootGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_LOOT_RELEASE));
+    packet.writeUInt64(lootGuid);
+    return packet;
+}
+
+bool LootResponseParser::parse(network::Packet& packet, LootResponseData& data) {
+    data.lootGuid = packet.readUInt64();
+    data.lootType = packet.readUInt8();
+    data.gold = packet.readUInt32();
+    uint8_t itemCount = packet.readUInt8();
+
+    data.items.reserve(itemCount);
+    for (uint8_t i = 0; i < itemCount; ++i) {
+        LootItem item;
+        item.slotIndex = packet.readUInt8();
+        item.itemId = packet.readUInt32();
+        item.count = packet.readUInt32();
+        item.displayInfoId = packet.readUInt32();
+        item.randomSuffix = packet.readUInt32();
+        item.randomPropertyId = packet.readUInt32();
+        item.lootSlotType = packet.readUInt8();
+        data.items.push_back(item);
+    }
+
+    LOG_INFO("Loot response: ", (int)itemCount, " items, ", data.gold, " copper");
+    return true;
+}
+
+// ============================================================
+// Phase 5: NPC Gossip
+// ============================================================
+
+network::Packet GossipHelloPacket::build(uint64_t npcGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_GOSSIP_HELLO));
+    packet.writeUInt64(npcGuid);
+    return packet;
+}
+
+network::Packet GossipSelectOptionPacket::build(uint64_t npcGuid, uint32_t optionId, const std::string& code) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_GOSSIP_SELECT_OPTION));
+    packet.writeUInt64(npcGuid);
+    packet.writeUInt32(optionId);
+    if (!code.empty()) {
+        packet.writeString(code);
+    }
+    return packet;
+}
+
+bool GossipMessageParser::parse(network::Packet& packet, GossipMessageData& data) {
+    data.npcGuid = packet.readUInt64();
+    data.menuId = packet.readUInt32();
+    data.titleTextId = packet.readUInt32();
+    uint32_t optionCount = packet.readUInt32();
+
+    data.options.reserve(optionCount);
+    for (uint32_t i = 0; i < optionCount; ++i) {
+        GossipOption opt;
+        opt.id = packet.readUInt32();
+        opt.icon = packet.readUInt8();
+        opt.isCoded = (packet.readUInt8() != 0);
+        opt.boxMoney = packet.readUInt32();
+        opt.text = packet.readString();
+        opt.boxText = packet.readString();
+        data.options.push_back(opt);
+    }
+
+    uint32_t questCount = packet.readUInt32();
+    data.quests.reserve(questCount);
+    for (uint32_t i = 0; i < questCount; ++i) {
+        GossipQuestItem quest;
+        quest.questId = packet.readUInt32();
+        quest.questIcon = packet.readUInt32();
+        quest.questLevel = static_cast<int32_t>(packet.readUInt32());
+        quest.questFlags = packet.readUInt32();
+        quest.isRepeatable = packet.readUInt8();
+        quest.title = packet.readString();
+        data.quests.push_back(quest);
+    }
+
+    LOG_INFO("Gossip: ", optionCount, " options, ", questCount, " quests");
+    return true;
+}
+
+// ============================================================
+// Phase 5: Vendor
+// ============================================================
+
+network::Packet ListInventoryPacket::build(uint64_t npcGuid) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_LIST_INVENTORY));
+    packet.writeUInt64(npcGuid);
+    return packet;
+}
+
+network::Packet BuyItemPacket::build(uint64_t vendorGuid, uint32_t itemId, uint32_t slot, uint8_t count) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_BUY_ITEM));
+    packet.writeUInt64(vendorGuid);
+    packet.writeUInt32(itemId);
+    packet.writeUInt32(slot);
+    packet.writeUInt8(count);
+    return packet;
+}
+
+network::Packet SellItemPacket::build(uint64_t vendorGuid, uint64_t itemGuid, uint8_t count) {
+    network::Packet packet(static_cast<uint16_t>(Opcode::CMSG_SELL_ITEM));
+    packet.writeUInt64(vendorGuid);
+    packet.writeUInt64(itemGuid);
+    packet.writeUInt8(count);
+    return packet;
+}
+
+bool ListInventoryParser::parse(network::Packet& packet, ListInventoryData& data) {
+    data.vendorGuid = packet.readUInt64();
+    uint8_t itemCount = packet.readUInt8();
+
+    if (itemCount == 0) {
+        LOG_INFO("Vendor has nothing for sale");
+        return true;
+    }
+
+    data.items.reserve(itemCount);
+    for (uint8_t i = 0; i < itemCount; ++i) {
+        VendorItem item;
+        item.slot = packet.readUInt32();
+        item.itemId = packet.readUInt32();
+        item.displayInfoId = packet.readUInt32();
+        item.maxCount = static_cast<int32_t>(packet.readUInt32());
+        item.buyPrice = packet.readUInt32();
+        item.durability = packet.readUInt32();
+        item.stackCount = packet.readUInt32();
+        item.extendedCost = packet.readUInt32();
+        data.items.push_back(item);
+    }
+
+    LOG_INFO("Vendor inventory: ", (int)itemCount, " items");
+    return true;
+}
+
 } // namespace game
 } // namespace wowee

@@ -178,6 +178,10 @@ set(WOWEE_HEADERS
     include/game/zone_manager.hpp
     include/game/npc_manager.hpp
     include/game/inventory.hpp
+    include/game/spell_defines.hpp
+    include/game/group_defines.hpp
+    include/game/world_packets.hpp
+    include/game/character.hpp
 
     include/audio/music_manager.hpp
     include/audio/footstep_manager.hpp

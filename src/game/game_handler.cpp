@@ -106,6 +106,37 @@ void GameHandler::update(float deltaTime) {
             sendPing();
             timeSinceLastPing = 0.0f;
         }
+
+        // Update cast timer (Phase 3)
+        if (casting && castTimeRemaining > 0.0f) {
+            castTimeRemaining -= deltaTime;
+            if (castTimeRemaining <= 0.0f) {
+                casting = false;
+                currentCastSpellId = 0;
+                castTimeRemaining = 0.0f;
+            }
+        }
+
+        // Update spell cooldowns (Phase 3)
+        for (auto it = spellCooldowns.begin(); it != spellCooldowns.end(); ) {
+            it->second -= deltaTime;
+            if (it->second <= 0.0f) {
+                it = spellCooldowns.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
+        // Update action bar cooldowns
+        for (auto& slot : actionBar) {
+            if (slot.cooldownRemaining > 0.0f) {
+                slot.cooldownRemaining -= deltaTime;
+                if (slot.cooldownRemaining < 0.0f) slot.cooldownRemaining = 0.0f;
+            }
+        }
+
+        // Update combat text (Phase 2)
+        updateCombatText(deltaTime);
     }
 }
 
@@ -190,6 +221,127 @@ void GameHandler::handlePacket(network::Packet& packet) {
             if (state == WorldState::IN_WORLD) {
                 handleMessageChat(packet);
             }
+            break;
+
+        // ---- Phase 1: Foundation ----
+        case Opcode::SMSG_NAME_QUERY_RESPONSE:
+            handleNameQueryResponse(packet);
+            break;
+
+        case Opcode::SMSG_CREATURE_QUERY_RESPONSE:
+            handleCreatureQueryResponse(packet);
+            break;
+
+        // ---- Phase 2: Combat ----
+        case Opcode::SMSG_ATTACKSTART:
+            handleAttackStart(packet);
+            break;
+        case Opcode::SMSG_ATTACKSTOP:
+            handleAttackStop(packet);
+            break;
+        case Opcode::SMSG_ATTACKERSTATEUPDATE:
+            handleAttackerStateUpdate(packet);
+            break;
+        case Opcode::SMSG_SPELLNONMELEEDAMAGELOG:
+            handleSpellDamageLog(packet);
+            break;
+        case Opcode::SMSG_SPELLHEALLOG:
+            handleSpellHealLog(packet);
+            break;
+
+        // ---- Phase 3: Spells ----
+        case Opcode::SMSG_INITIAL_SPELLS:
+            handleInitialSpells(packet);
+            break;
+        case Opcode::SMSG_CAST_FAILED:
+            handleCastFailed(packet);
+            break;
+        case Opcode::SMSG_SPELL_START:
+            handleSpellStart(packet);
+            break;
+        case Opcode::SMSG_SPELL_GO:
+            handleSpellGo(packet);
+            break;
+        case Opcode::SMSG_SPELL_FAILURE:
+            // Spell failed mid-cast
+            casting = false;
+            currentCastSpellId = 0;
+            break;
+        case Opcode::SMSG_SPELL_COOLDOWN:
+            handleSpellCooldown(packet);
+            break;
+        case Opcode::SMSG_COOLDOWN_EVENT:
+            handleCooldownEvent(packet);
+            break;
+        case Opcode::SMSG_AURA_UPDATE:
+            handleAuraUpdate(packet, false);
+            break;
+        case Opcode::SMSG_AURA_UPDATE_ALL:
+            handleAuraUpdate(packet, true);
+            break;
+        case Opcode::SMSG_LEARNED_SPELL:
+            handleLearnedSpell(packet);
+            break;
+        case Opcode::SMSG_REMOVED_SPELL:
+            handleRemovedSpell(packet);
+            break;
+
+        // ---- Phase 4: Group ----
+        case Opcode::SMSG_GROUP_INVITE:
+            handleGroupInvite(packet);
+            break;
+        case Opcode::SMSG_GROUP_DECLINE:
+            handleGroupDecline(packet);
+            break;
+        case Opcode::SMSG_GROUP_LIST:
+            handleGroupList(packet);
+            break;
+        case Opcode::SMSG_GROUP_UNINVITE:
+            handleGroupUninvite(packet);
+            break;
+        case Opcode::SMSG_PARTY_COMMAND_RESULT:
+            handlePartyCommandResult(packet);
+            break;
+
+        // ---- Phase 5: Loot/Gossip/Vendor ----
+        case Opcode::SMSG_LOOT_RESPONSE:
+            handleLootResponse(packet);
+            break;
+        case Opcode::SMSG_LOOT_RELEASE_RESPONSE:
+            handleLootReleaseResponse(packet);
+            break;
+        case Opcode::SMSG_LOOT_REMOVED:
+            handleLootRemoved(packet);
+            break;
+        case Opcode::SMSG_GOSSIP_MESSAGE:
+            handleGossipMessage(packet);
+            break;
+        case Opcode::SMSG_GOSSIP_COMPLETE:
+            handleGossipComplete(packet);
+            break;
+        case Opcode::SMSG_LIST_INVENTORY:
+            handleListInventory(packet);
+            break;
+
+        // Silently ignore common packets we don't handle yet
+        case Opcode::SMSG_FEATURE_SYSTEM_STATUS:
+        case Opcode::SMSG_SET_FLAT_SPELL_MODIFIER:
+        case Opcode::SMSG_SET_PCT_SPELL_MODIFIER:
+        case Opcode::SMSG_SPELL_DELAYED:
+        case Opcode::SMSG_UPDATE_AURA_DURATION:
+        case Opcode::SMSG_PERIODICAURALOG:
+        case Opcode::SMSG_SPELLENERGIZELOG:
+        case Opcode::SMSG_ENVIRONMENTALDAMAGELOG:
+        case Opcode::SMSG_LOOT_MONEY_NOTIFY:
+        case Opcode::SMSG_LOOT_CLEAR_MONEY:
+        case Opcode::SMSG_NPC_TEXT_UPDATE:
+        case Opcode::SMSG_SELL_ITEM:
+        case Opcode::SMSG_BUY_FAILED:
+        case Opcode::SMSG_INVENTORY_CHANGE_FAILURE:
+        case Opcode::SMSG_GAMEOBJECT_QUERY_RESPONSE:
+        case Opcode::MSG_RAID_TARGET_UPDATE:
+        case Opcode::SMSG_GROUP_SET_LEADER:
+            LOG_DEBUG("Ignoring known opcode: 0x", std::hex, opcode, std::dec);
             break;
 
         default:
@@ -357,6 +509,9 @@ void GameHandler::selectCharacter(uint64_t characterGuid) {
         }
     }
 
+    // Store player GUID
+    playerGuid = characterGuid;
+
     // Build CMSG_PLAYER_LOGIN packet
     auto packet = PlayerLoginPacket::build(characterGuid);
 
@@ -400,6 +555,13 @@ void GameHandler::handleLoginVerifyWorld(network::Packet& packet) {
     movementInfo.flags = 0;
     movementInfo.flags2 = 0;
     movementInfo.time = 0;
+
+    // Send CMSG_SET_ACTIVE_MOVER (required by some servers)
+    if (playerGuid != 0 && socket) {
+        auto activeMoverPacket = SetActiveMoverPacket::build(playerGuid);
+        socket->send(activeMoverPacket);
+        LOG_INFO("Sent CMSG_SET_ACTIVE_MOVER for player 0x", std::hex, playerGuid, std::dec);
+    }
 }
 
 void GameHandler::handleAccountDataTimes(network::Packet& packet) {
@@ -603,6 +765,35 @@ void GameHandler::handleUpdateObject(network::Packet& packet) {
 
                 // Add to manager
                 entityManager.addEntity(block.guid, entity);
+
+                // Auto-query names (Phase 1)
+                if (block.objectType == ObjectType::PLAYER) {
+                    queryPlayerName(block.guid);
+                } else if (block.objectType == ObjectType::UNIT) {
+                    // Extract creature entry from fields (UNIT_FIELD_ENTRY = index 54 in 3.3.5a,
+                    // but the OBJECT_FIELD_ENTRY is at index 3)
+                    auto it = block.fields.find(3); // OBJECT_FIELD_ENTRY
+                    if (it != block.fields.end() && it->second != 0) {
+                        auto unit = std::static_pointer_cast<Unit>(entity);
+                        unit->setEntry(it->second);
+                        queryCreatureInfo(it->second, block.guid);
+                    }
+                }
+
+                // Extract health/mana/power from fields (Phase 2)
+                if (block.objectType == ObjectType::UNIT || block.objectType == ObjectType::PLAYER) {
+                    auto unit = std::static_pointer_cast<Unit>(entity);
+                    auto hpIt = block.fields.find(24); // UNIT_FIELD_HEALTH
+                    if (hpIt != block.fields.end()) unit->setHealth(hpIt->second);
+                    auto maxHpIt = block.fields.find(32); // UNIT_FIELD_MAXHEALTH
+                    if (maxHpIt != block.fields.end()) unit->setMaxHealth(maxHpIt->second);
+                    auto powerIt = block.fields.find(25); // UNIT_FIELD_POWER1
+                    if (powerIt != block.fields.end()) unit->setPower(powerIt->second);
+                    auto maxPowerIt = block.fields.find(33); // UNIT_FIELD_MAXPOWER1
+                    if (maxPowerIt != block.fields.end()) unit->setMaxPower(maxPowerIt->second);
+                    auto levelIt = block.fields.find(54); // UNIT_FIELD_LEVEL
+                    if (levelIt != block.fields.end()) unit->setLevel(levelIt->second);
+                }
                 break;
             }
 
@@ -613,6 +804,22 @@ void GameHandler::handleUpdateObject(network::Packet& packet) {
                     for (const auto& field : block.fields) {
                         entity->setField(field.first, field.second);
                     }
+
+                    // Update cached health/mana/power values (Phase 2)
+                    if (entity->getType() == ObjectType::UNIT || entity->getType() == ObjectType::PLAYER) {
+                        auto unit = std::static_pointer_cast<Unit>(entity);
+                        auto hpIt = block.fields.find(24);
+                        if (hpIt != block.fields.end()) unit->setHealth(hpIt->second);
+                        auto maxHpIt = block.fields.find(32);
+                        if (maxHpIt != block.fields.end()) unit->setMaxHealth(maxHpIt->second);
+                        auto powerIt = block.fields.find(25);
+                        if (powerIt != block.fields.end()) unit->setPower(powerIt->second);
+                        auto maxPowerIt = block.fields.find(33);
+                        if (maxPowerIt != block.fields.end()) unit->setMaxPower(maxPowerIt->second);
+                        auto levelIt = block.fields.find(54);
+                        if (levelIt != block.fields.end()) unit->setLevel(levelIt->second);
+                    }
+
                     LOG_DEBUG("Updated entity fields: 0x", std::hex, block.guid, std::dec);
                 } else {
                     LOG_WARNING("VALUES update for unknown entity: 0x", std::hex, block.guid, std::dec);
@@ -737,6 +944,13 @@ void GameHandler::handleMessageChat(network::Packet& packet) {
 void GameHandler::setTarget(uint64_t guid) {
     if (guid == targetGuid) return;
     targetGuid = guid;
+
+    // Inform server of target selection (Phase 1)
+    if (state == WorldState::IN_WORLD && socket) {
+        auto packet = SetSelectionPacket::build(guid);
+        socket->send(packet);
+    }
+
     if (guid != 0) {
         LOG_INFO("Target set: 0x", std::hex, guid, std::dec);
     }
@@ -813,6 +1027,539 @@ std::vector<MessageChatData> GameHandler::getChatHistory(size_t maxMessages) con
         chatHistory.end() - maxMessages,
         chatHistory.end()
     );
+}
+
+// ============================================================
+// Phase 1: Name Queries
+// ============================================================
+
+void GameHandler::queryPlayerName(uint64_t guid) {
+    if (playerNameCache.count(guid) || pendingNameQueries.count(guid)) return;
+    if (state != WorldState::IN_WORLD || !socket) return;
+
+    pendingNameQueries.insert(guid);
+    auto packet = NameQueryPacket::build(guid);
+    socket->send(packet);
+}
+
+void GameHandler::queryCreatureInfo(uint32_t entry, uint64_t guid) {
+    if (creatureInfoCache.count(entry) || pendingCreatureQueries.count(entry)) return;
+    if (state != WorldState::IN_WORLD || !socket) return;
+
+    pendingCreatureQueries.insert(entry);
+    auto packet = CreatureQueryPacket::build(entry, guid);
+    socket->send(packet);
+}
+
+std::string GameHandler::getCachedPlayerName(uint64_t guid) const {
+    auto it = playerNameCache.find(guid);
+    return (it != playerNameCache.end()) ? it->second : "";
+}
+
+std::string GameHandler::getCachedCreatureName(uint32_t entry) const {
+    auto it = creatureInfoCache.find(entry);
+    return (it != creatureInfoCache.end()) ? it->second.name : "";
+}
+
+void GameHandler::handleNameQueryResponse(network::Packet& packet) {
+    NameQueryResponseData data;
+    if (!NameQueryResponseParser::parse(packet, data)) return;
+
+    pendingNameQueries.erase(data.guid);
+
+    if (data.isValid()) {
+        playerNameCache[data.guid] = data.name;
+        // Update entity name
+        auto entity = entityManager.getEntity(data.guid);
+        if (entity && entity->getType() == ObjectType::PLAYER) {
+            auto player = std::static_pointer_cast<Player>(entity);
+            player->setName(data.name);
+        }
+    }
+}
+
+void GameHandler::handleCreatureQueryResponse(network::Packet& packet) {
+    CreatureQueryResponseData data;
+    if (!CreatureQueryResponseParser::parse(packet, data)) return;
+
+    pendingCreatureQueries.erase(data.entry);
+
+    if (data.isValid()) {
+        creatureInfoCache[data.entry] = data;
+        // Update all unit entities with this entry
+        for (auto& [guid, entity] : entityManager.getEntities()) {
+            if (entity->getType() == ObjectType::UNIT) {
+                auto unit = std::static_pointer_cast<Unit>(entity);
+                if (unit->getEntry() == data.entry) {
+                    unit->setName(data.name);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================
+// Phase 2: Combat
+// ============================================================
+
+void GameHandler::startAutoAttack(uint64_t targetGuid) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    autoAttacking = true;
+    autoAttackTarget = targetGuid;
+    auto packet = AttackSwingPacket::build(targetGuid);
+    socket->send(packet);
+    LOG_INFO("Starting auto-attack on 0x", std::hex, targetGuid, std::dec);
+}
+
+void GameHandler::stopAutoAttack() {
+    if (!autoAttacking) return;
+    autoAttacking = false;
+    autoAttackTarget = 0;
+    if (state == WorldState::IN_WORLD && socket) {
+        auto packet = AttackStopPacket::build();
+        socket->send(packet);
+    }
+    LOG_INFO("Stopping auto-attack");
+}
+
+void GameHandler::addCombatText(CombatTextEntry::Type type, int32_t amount, uint32_t spellId, bool isPlayerSource) {
+    CombatTextEntry entry;
+    entry.type = type;
+    entry.amount = amount;
+    entry.spellId = spellId;
+    entry.age = 0.0f;
+    entry.isPlayerSource = isPlayerSource;
+    combatText.push_back(entry);
+}
+
+void GameHandler::updateCombatText(float deltaTime) {
+    for (auto& entry : combatText) {
+        entry.age += deltaTime;
+    }
+    combatText.erase(
+        std::remove_if(combatText.begin(), combatText.end(),
+                       [](const CombatTextEntry& e) { return e.isExpired(); }),
+        combatText.end());
+}
+
+void GameHandler::handleAttackStart(network::Packet& packet) {
+    AttackStartData data;
+    if (!AttackStartParser::parse(packet, data)) return;
+
+    if (data.attackerGuid == playerGuid) {
+        autoAttacking = true;
+        autoAttackTarget = data.victimGuid;
+    }
+}
+
+void GameHandler::handleAttackStop(network::Packet& packet) {
+    AttackStopData data;
+    if (!AttackStopParser::parse(packet, data)) return;
+
+    if (data.attackerGuid == playerGuid) {
+        autoAttacking = false;
+        autoAttackTarget = 0;
+    }
+}
+
+void GameHandler::handleAttackerStateUpdate(network::Packet& packet) {
+    AttackerStateUpdateData data;
+    if (!AttackerStateUpdateParser::parse(packet, data)) return;
+
+    bool isPlayerAttacker = (data.attackerGuid == playerGuid);
+    bool isPlayerTarget = (data.targetGuid == playerGuid);
+
+    if (data.isMiss()) {
+        addCombatText(CombatTextEntry::MISS, 0, 0, isPlayerAttacker);
+    } else if (data.victimState == 1) {
+        addCombatText(CombatTextEntry::DODGE, 0, 0, isPlayerAttacker);
+    } else if (data.victimState == 2) {
+        addCombatText(CombatTextEntry::PARRY, 0, 0, isPlayerAttacker);
+    } else {
+        auto type = data.isCrit() ? CombatTextEntry::CRIT_DAMAGE : CombatTextEntry::MELEE_DAMAGE;
+        addCombatText(type, data.totalDamage, 0, isPlayerAttacker);
+    }
+
+    (void)isPlayerTarget; // Used for future incoming damage display
+}
+
+void GameHandler::handleSpellDamageLog(network::Packet& packet) {
+    SpellDamageLogData data;
+    if (!SpellDamageLogParser::parse(packet, data)) return;
+
+    bool isPlayerSource = (data.attackerGuid == playerGuid);
+    auto type = data.isCrit ? CombatTextEntry::CRIT_DAMAGE : CombatTextEntry::SPELL_DAMAGE;
+    addCombatText(type, static_cast<int32_t>(data.damage), data.spellId, isPlayerSource);
+}
+
+void GameHandler::handleSpellHealLog(network::Packet& packet) {
+    SpellHealLogData data;
+    if (!SpellHealLogParser::parse(packet, data)) return;
+
+    bool isPlayerSource = (data.casterGuid == playerGuid);
+    auto type = data.isCrit ? CombatTextEntry::CRIT_HEAL : CombatTextEntry::HEAL;
+    addCombatText(type, static_cast<int32_t>(data.heal), data.spellId, isPlayerSource);
+}
+
+// ============================================================
+// Phase 3: Spells
+// ============================================================
+
+void GameHandler::castSpell(uint32_t spellId, uint64_t targetGuid) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    if (casting) return; // Already casting
+
+    uint64_t target = targetGuid != 0 ? targetGuid : targetGuid;
+    auto packet = CastSpellPacket::build(spellId, target, ++castCount);
+    socket->send(packet);
+    LOG_INFO("Casting spell: ", spellId, " on 0x", std::hex, target, std::dec);
+}
+
+void GameHandler::cancelCast() {
+    if (!casting) return;
+    if (state == WorldState::IN_WORLD && socket) {
+        auto packet = CancelCastPacket::build(currentCastSpellId);
+        socket->send(packet);
+    }
+    casting = false;
+    currentCastSpellId = 0;
+    castTimeRemaining = 0.0f;
+}
+
+void GameHandler::cancelAura(uint32_t spellId) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = CancelAuraPacket::build(spellId);
+    socket->send(packet);
+}
+
+void GameHandler::setActionBarSlot(int slot, ActionBarSlot::Type type, uint32_t id) {
+    if (slot < 0 || slot >= ACTION_BAR_SLOTS) return;
+    actionBar[slot].type = type;
+    actionBar[slot].id = id;
+}
+
+float GameHandler::getSpellCooldown(uint32_t spellId) const {
+    auto it = spellCooldowns.find(spellId);
+    return (it != spellCooldowns.end()) ? it->second : 0.0f;
+}
+
+void GameHandler::handleInitialSpells(network::Packet& packet) {
+    InitialSpellsData data;
+    if (!InitialSpellsParser::parse(packet, data)) return;
+
+    knownSpells = data.spellIds;
+
+    // Set initial cooldowns
+    for (const auto& cd : data.cooldowns) {
+        if (cd.cooldownMs > 0) {
+            spellCooldowns[cd.spellId] = cd.cooldownMs / 1000.0f;
+        }
+    }
+
+    // Auto-populate action bar with first 12 spells
+    for (int i = 0; i < ACTION_BAR_SLOTS && i < static_cast<int>(knownSpells.size()); ++i) {
+        actionBar[i].type = ActionBarSlot::SPELL;
+        actionBar[i].id = knownSpells[i];
+    }
+
+    LOG_INFO("Learned ", knownSpells.size(), " spells");
+}
+
+void GameHandler::handleCastFailed(network::Packet& packet) {
+    CastFailedData data;
+    if (!CastFailedParser::parse(packet, data)) return;
+
+    casting = false;
+    currentCastSpellId = 0;
+    castTimeRemaining = 0.0f;
+
+    // Add system message about failed cast
+    MessageChatData msg;
+    msg.type = ChatType::SYSTEM;
+    msg.language = ChatLanguage::UNIVERSAL;
+    msg.message = "Spell cast failed (error " + std::to_string(data.result) + ")";
+    addLocalChatMessage(msg);
+}
+
+void GameHandler::handleSpellStart(network::Packet& packet) {
+    SpellStartData data;
+    if (!SpellStartParser::parse(packet, data)) return;
+
+    // If this is the player's own cast, start cast bar
+    if (data.casterUnit == playerGuid && data.castTime > 0) {
+        casting = true;
+        currentCastSpellId = data.spellId;
+        castTimeTotal = data.castTime / 1000.0f;
+        castTimeRemaining = castTimeTotal;
+    }
+}
+
+void GameHandler::handleSpellGo(network::Packet& packet) {
+    SpellGoData data;
+    if (!SpellGoParser::parse(packet, data)) return;
+
+    // Cast completed
+    if (data.casterUnit == playerGuid) {
+        casting = false;
+        currentCastSpellId = 0;
+        castTimeRemaining = 0.0f;
+    }
+}
+
+void GameHandler::handleSpellCooldown(network::Packet& packet) {
+    SpellCooldownData data;
+    if (!SpellCooldownParser::parse(packet, data)) return;
+
+    for (const auto& [spellId, cooldownMs] : data.cooldowns) {
+        float seconds = cooldownMs / 1000.0f;
+        spellCooldowns[spellId] = seconds;
+        // Update action bar cooldowns
+        for (auto& slot : actionBar) {
+            if (slot.type == ActionBarSlot::SPELL && slot.id == spellId) {
+                slot.cooldownTotal = seconds;
+                slot.cooldownRemaining = seconds;
+            }
+        }
+    }
+}
+
+void GameHandler::handleCooldownEvent(network::Packet& packet) {
+    uint32_t spellId = packet.readUInt32();
+    // Cooldown finished
+    spellCooldowns.erase(spellId);
+    for (auto& slot : actionBar) {
+        if (slot.type == ActionBarSlot::SPELL && slot.id == spellId) {
+            slot.cooldownRemaining = 0.0f;
+        }
+    }
+}
+
+void GameHandler::handleAuraUpdate(network::Packet& packet, bool isAll) {
+    AuraUpdateData data;
+    if (!AuraUpdateParser::parse(packet, data, isAll)) return;
+
+    // Determine which aura list to update
+    std::vector<AuraSlot>* auraList = nullptr;
+    if (data.guid == playerGuid) {
+        auraList = &playerAuras;
+    } else if (data.guid == targetGuid) {
+        auraList = &targetAuras;
+    }
+
+    if (auraList) {
+        for (const auto& [slot, aura] : data.updates) {
+            // Ensure vector is large enough
+            while (auraList->size() <= slot) {
+                auraList->push_back(AuraSlot{});
+            }
+            (*auraList)[slot] = aura;
+        }
+    }
+}
+
+void GameHandler::handleLearnedSpell(network::Packet& packet) {
+    uint32_t spellId = packet.readUInt32();
+    knownSpells.push_back(spellId);
+    LOG_INFO("Learned spell: ", spellId);
+}
+
+void GameHandler::handleRemovedSpell(network::Packet& packet) {
+    uint32_t spellId = packet.readUInt32();
+    knownSpells.erase(
+        std::remove(knownSpells.begin(), knownSpells.end(), spellId),
+        knownSpells.end());
+    LOG_INFO("Removed spell: ", spellId);
+}
+
+// ============================================================
+// Phase 4: Group/Party
+// ============================================================
+
+void GameHandler::inviteToGroup(const std::string& playerName) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = GroupInvitePacket::build(playerName);
+    socket->send(packet);
+    LOG_INFO("Inviting ", playerName, " to group");
+}
+
+void GameHandler::acceptGroupInvite() {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    pendingGroupInvite = false;
+    auto packet = GroupAcceptPacket::build();
+    socket->send(packet);
+    LOG_INFO("Accepted group invite");
+}
+
+void GameHandler::declineGroupInvite() {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    pendingGroupInvite = false;
+    auto packet = GroupDeclinePacket::build();
+    socket->send(packet);
+    LOG_INFO("Declined group invite");
+}
+
+void GameHandler::leaveGroup() {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = GroupDisbandPacket::build();
+    socket->send(packet);
+    partyData = GroupListData{};
+    LOG_INFO("Left group");
+}
+
+void GameHandler::handleGroupInvite(network::Packet& packet) {
+    GroupInviteResponseData data;
+    if (!GroupInviteResponseParser::parse(packet, data)) return;
+
+    pendingGroupInvite = true;
+    pendingInviterName = data.inviterName;
+    LOG_INFO("Group invite from: ", data.inviterName);
+}
+
+void GameHandler::handleGroupDecline(network::Packet& packet) {
+    GroupDeclineData data;
+    if (!GroupDeclineResponseParser::parse(packet, data)) return;
+
+    MessageChatData msg;
+    msg.type = ChatType::SYSTEM;
+    msg.language = ChatLanguage::UNIVERSAL;
+    msg.message = data.playerName + " has declined your group invitation.";
+    addLocalChatMessage(msg);
+}
+
+void GameHandler::handleGroupList(network::Packet& packet) {
+    if (!GroupListParser::parse(packet, partyData)) return;
+
+    if (partyData.isEmpty()) {
+        LOG_INFO("No longer in a group");
+    } else {
+        LOG_INFO("In group with ", partyData.memberCount, " members");
+    }
+}
+
+void GameHandler::handleGroupUninvite(network::Packet& packet) {
+    (void)packet;
+    partyData = GroupListData{};
+    LOG_INFO("Removed from group");
+
+    MessageChatData msg;
+    msg.type = ChatType::SYSTEM;
+    msg.language = ChatLanguage::UNIVERSAL;
+    msg.message = "You have been removed from the group.";
+    addLocalChatMessage(msg);
+}
+
+void GameHandler::handlePartyCommandResult(network::Packet& packet) {
+    PartyCommandResultData data;
+    if (!PartyCommandResultParser::parse(packet, data)) return;
+
+    if (data.result != PartyResult::OK) {
+        MessageChatData msg;
+        msg.type = ChatType::SYSTEM;
+        msg.language = ChatLanguage::UNIVERSAL;
+        msg.message = "Party command failed (error " + std::to_string(static_cast<uint32_t>(data.result)) + ")";
+        if (!data.name.empty()) msg.message += " for " + data.name;
+        addLocalChatMessage(msg);
+    }
+}
+
+// ============================================================
+// Phase 5: Loot, Gossip, Vendor
+// ============================================================
+
+void GameHandler::lootTarget(uint64_t guid) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = LootPacket::build(guid);
+    socket->send(packet);
+}
+
+void GameHandler::lootItem(uint8_t slotIndex) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = AutostoreLootItemPacket::build(slotIndex);
+    socket->send(packet);
+}
+
+void GameHandler::closeLoot() {
+    if (!lootWindowOpen) return;
+    lootWindowOpen = false;
+    if (state == WorldState::IN_WORLD && socket) {
+        auto packet = LootReleasePacket::build(currentLoot.lootGuid);
+        socket->send(packet);
+    }
+    currentLoot = LootResponseData{};
+}
+
+void GameHandler::interactWithNpc(uint64_t guid) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = GossipHelloPacket::build(guid);
+    socket->send(packet);
+}
+
+void GameHandler::selectGossipOption(uint32_t optionId) {
+    if (state != WorldState::IN_WORLD || !socket || !gossipWindowOpen) return;
+    auto packet = GossipSelectOptionPacket::build(currentGossip.npcGuid, optionId);
+    socket->send(packet);
+}
+
+void GameHandler::closeGossip() {
+    gossipWindowOpen = false;
+    currentGossip = GossipMessageData{};
+}
+
+void GameHandler::openVendor(uint64_t npcGuid) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = ListInventoryPacket::build(npcGuid);
+    socket->send(packet);
+}
+
+void GameHandler::buyItem(uint64_t vendorGuid, uint32_t itemId, uint32_t slot, uint8_t count) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = BuyItemPacket::build(vendorGuid, itemId, slot, count);
+    socket->send(packet);
+}
+
+void GameHandler::sellItem(uint64_t vendorGuid, uint64_t itemGuid, uint8_t count) {
+    if (state != WorldState::IN_WORLD || !socket) return;
+    auto packet = SellItemPacket::build(vendorGuid, itemGuid, count);
+    socket->send(packet);
+}
+
+void GameHandler::handleLootResponse(network::Packet& packet) {
+    if (!LootResponseParser::parse(packet, currentLoot)) return;
+    lootWindowOpen = true;
+}
+
+void GameHandler::handleLootReleaseResponse(network::Packet& packet) {
+    (void)packet;
+    lootWindowOpen = false;
+    currentLoot = LootResponseData{};
+}
+
+void GameHandler::handleLootRemoved(network::Packet& packet) {
+    uint8_t slotIndex = packet.readUInt8();
+    for (auto it = currentLoot.items.begin(); it != currentLoot.items.end(); ++it) {
+        if (it->slotIndex == slotIndex) {
+            currentLoot.items.erase(it);
+            break;
+        }
+    }
+}
+
+void GameHandler::handleGossipMessage(network::Packet& packet) {
+    if (!GossipMessageParser::parse(packet, currentGossip)) return;
+    gossipWindowOpen = true;
+    vendorWindowOpen = false; // Close vendor if gossip opens
+}
+
+void GameHandler::handleGossipComplete(network::Packet& packet) {
+    (void)packet;
+    gossipWindowOpen = false;
+    currentGossip = GossipMessageData{};
+}
+
+void GameHandler::handleListInventory(network::Packet& packet) {
+    if (!ListInventoryParser::parse(packet, currentVendorItems)) return;
+    vendorWindowOpen = true;
+    gossipWindowOpen = false; // Close gossip if vendor opens
 }
 
 uint32_t GameHandler::generateClientSeed() {

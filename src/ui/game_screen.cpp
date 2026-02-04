@@ -54,21 +54,6 @@ void GameScreen::render(game::GameHandler& gameHandler) {
     // Process targeting input before UI windows
     processTargetInput(gameHandler);
 
-    // Main menu bar
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Player Info", nullptr, &showPlayerInfo);
-            ImGui::MenuItem("Entity List", nullptr, &showEntityWindow);
-            ImGui::MenuItem("Chat", nullptr, &showChatWindow);
-            bool invOpen = inventoryScreen.isOpen();
-            if (ImGui::MenuItem("Inventory", "B", &invOpen)) {
-                inventoryScreen.setOpen(invOpen);
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::EndMainMenuBar();
-    }
-
     // Player unit frame (top-left)
     renderPlayerFrame(gameHandler);
 
@@ -89,6 +74,17 @@ void GameScreen::render(game::GameHandler& gameHandler) {
     if (showChatWindow) {
         renderChatWindow(gameHandler);
     }
+
+    // ---- New UI elements ----
+    renderActionBar(gameHandler);
+    renderCastBar(gameHandler);
+    renderCombatText(gameHandler);
+    renderPartyFrames(gameHandler);
+    renderGroupInvitePopup(gameHandler);
+    renderBuffBar(gameHandler);
+    renderLootWindow(gameHandler);
+    renderGossipWindow(gameHandler);
+    renderVendorWindow(gameHandler);
 
     // Inventory (B key toggle handled inside)
     inventoryScreen.render(gameHandler.getInventory());
@@ -346,7 +342,40 @@ void GameScreen::processTargetInput(game::GameHandler& gameHandler) {
         }
 
         if (input.isKeyJustPressed(SDL_SCANCODE_ESCAPE)) {
-            gameHandler.clearTarget();
+            if (gameHandler.isCasting()) {
+                gameHandler.cancelCast();
+            } else if (gameHandler.isLootWindowOpen()) {
+                gameHandler.closeLoot();
+            } else if (gameHandler.isGossipWindowOpen()) {
+                gameHandler.closeGossip();
+            } else {
+                gameHandler.clearTarget();
+            }
+        }
+
+        // Auto-attack (T key)
+        if (input.isKeyJustPressed(SDL_SCANCODE_T)) {
+            if (gameHandler.hasTarget() && !gameHandler.isAutoAttacking()) {
+                gameHandler.startAutoAttack(gameHandler.getTargetGuid());
+            } else if (gameHandler.isAutoAttacking()) {
+                gameHandler.stopAutoAttack();
+            }
+        }
+
+        // Action bar keys (1-9, 0, -, =)
+        static const SDL_Scancode actionBarKeys[] = {
+            SDL_SCANCODE_1, SDL_SCANCODE_2, SDL_SCANCODE_3, SDL_SCANCODE_4,
+            SDL_SCANCODE_5, SDL_SCANCODE_6, SDL_SCANCODE_7, SDL_SCANCODE_8,
+            SDL_SCANCODE_9, SDL_SCANCODE_0, SDL_SCANCODE_MINUS, SDL_SCANCODE_EQUALS
+        };
+        for (int i = 0; i < 12; ++i) {
+            if (input.isKeyJustPressed(actionBarKeys[i])) {
+                const auto& bar = gameHandler.getActionBar();
+                if (bar[i].type == game::ActionBarSlot::SPELL && bar[i].isReady()) {
+                    uint64_t target = gameHandler.hasTarget() ? gameHandler.getTargetGuid() : 0;
+                    gameHandler.castSpell(bar[i].id, target);
+                }
+            }
         }
     }
 
@@ -389,6 +418,27 @@ void GameScreen::processTargetInput(game::GameHandler& gameHandler) {
             // Don't clear on miss — left-click is also used for camera orbit
         }
     }
+
+    // Right-click on target for NPC interaction / loot / auto-attack
+    if (!io.WantCaptureMouse && input.isMouseButtonJustPressed(SDL_BUTTON_RIGHT)) {
+        if (gameHandler.hasTarget()) {
+            auto target = gameHandler.getTarget();
+            if (target) {
+                if (target->getType() == game::ObjectType::UNIT) {
+                    // Check if unit is dead (health == 0) → loot, otherwise interact/attack
+                    auto unit = std::static_pointer_cast<game::Unit>(target);
+                    if (unit->getHealth() == 0 && unit->getMaxHealth() > 0) {
+                        gameHandler.lootTarget(target->getGuid());
+                    } else {
+                        // Try NPC interaction first (gossip), fall back to attack
+                        gameHandler.interactWithNpc(target->getGuid());
+                    }
+                } else if (target->getType() == game::ObjectType::PLAYER) {
+                    // Right-click another player could start attack in PvP context
+                }
+            }
+        }
+    }
 }
 
 void GameScreen::renderPlayerFrame(game::GameHandler& gameHandler) {
@@ -426,6 +476,16 @@ void GameScreen::renderPlayerFrame(game::GameHandler& gameHandler) {
         ImGui::SameLine();
         ImGui::TextDisabled("Lv %u", playerLevel);
 
+        // Try to get real HP/mana from the player entity
+        auto playerEntity = gameHandler.getEntityManager().getEntity(gameHandler.getPlayerGuid());
+        if (playerEntity && (playerEntity->getType() == game::ObjectType::PLAYER || playerEntity->getType() == game::ObjectType::UNIT)) {
+            auto unit = std::static_pointer_cast<game::Unit>(playerEntity);
+            if (unit->getMaxHealth() > 0) {
+                playerHp = unit->getHealth();
+                playerMaxHp = unit->getMaxHealth();
+            }
+        }
+
         // Health bar
         float pct = static_cast<float>(playerHp) / static_cast<float>(playerMaxHp);
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
@@ -433,6 +493,29 @@ void GameScreen::renderPlayerFrame(game::GameHandler& gameHandler) {
         snprintf(overlay, sizeof(overlay), "%u / %u", playerHp, playerMaxHp);
         ImGui::ProgressBar(pct, ImVec2(-1, 18), overlay);
         ImGui::PopStyleColor();
+
+        // Mana/Power bar (Phase 2)
+        if (playerEntity && (playerEntity->getType() == game::ObjectType::PLAYER || playerEntity->getType() == game::ObjectType::UNIT)) {
+            auto unit = std::static_pointer_cast<game::Unit>(playerEntity);
+            uint32_t power = unit->getPower();
+            uint32_t maxPower = unit->getMaxPower();
+            if (maxPower > 0) {
+                float mpPct = static_cast<float>(power) / static_cast<float>(maxPower);
+                // Color by power type
+                ImVec4 powerColor;
+                switch (unit->getPowerType()) {
+                    case 0: powerColor = ImVec4(0.2f, 0.2f, 0.9f, 1.0f); break; // Mana (blue)
+                    case 1: powerColor = ImVec4(0.9f, 0.2f, 0.2f, 1.0f); break; // Rage (red)
+                    case 3: powerColor = ImVec4(0.9f, 0.9f, 0.2f, 1.0f); break; // Energy (yellow)
+                    default: powerColor = ImVec4(0.2f, 0.2f, 0.9f, 1.0f); break;
+                }
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, powerColor);
+                char mpOverlay[64];
+                snprintf(mpOverlay, sizeof(mpOverlay), "%u / %u", power, maxPower);
+                ImGui::ProgressBar(mpPct, ImVec2(-1, 14), mpOverlay);
+                ImGui::PopStyleColor();
+            }
+        }
     }
     ImGui::End();
 
@@ -500,6 +583,17 @@ void GameScreen::renderTargetFrame(game::GameHandler& gameHandler) {
                 snprintf(overlay, sizeof(overlay), "%u / %u", hp, maxHp);
                 ImGui::ProgressBar(pct, ImVec2(-1, 18), overlay);
                 ImGui::PopStyleColor();
+                // Target mana bar
+                uint32_t targetPower = unit->getPower();
+                uint32_t targetMaxPower = unit->getMaxPower();
+                if (targetMaxPower > 0) {
+                    float mpPct = static_cast<float>(targetPower) / static_cast<float>(targetMaxPower);
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.2f, 0.2f, 0.9f, 1.0f));
+                    char mpOverlay[64];
+                    snprintf(mpOverlay, sizeof(mpOverlay), "%u / %u", targetPower, targetMaxPower);
+                    ImGui::ProgressBar(mpPct, ImVec2(-1, 14), mpOverlay);
+                    ImGui::PopStyleColor();
+                }
             } else {
                 ImGui::TextDisabled("No health data");
             }
@@ -561,6 +655,14 @@ void GameScreen::sendChatMessage(game::GameHandler& gameHandler) {
                 chatInputBuffer[0] = '\0';
                 return;
             }
+            // /invite command (Phase 4)
+            if (command.size() > 7 && command.substr(0, 7) == "invite ") {
+                std::string targetName = input.substr(8);
+                gameHandler.inviteToGroup(targetName);
+                chatInputBuffer[0] = '\0';
+                return;
+            }
+
             // Not a recognized emote — fall through and send as normal chat
         }
 
@@ -855,6 +957,550 @@ void GameScreen::updateCharacterTextures(game::Inventory& inventory) {
             // No cloak equipped — reset to white fallback
             charRenderer->resetModelTexture(1, cloakSlot);
         }
+    }
+}
+
+// ============================================================
+// Action Bar (Phase 3)
+// ============================================================
+
+void GameScreen::renderActionBar(game::GameHandler& gameHandler) {
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+    float screenH = window ? static_cast<float>(window->getHeight()) : 720.0f;
+
+    float slotSize = 48.0f;
+    float spacing = 4.0f;
+    float padding = 8.0f;
+    float barW = 12 * slotSize + 11 * spacing + padding * 2;
+    float barH = slotSize + 24.0f;
+    float barX = (screenW - barW) / 2.0f;
+    float barY = screenH - barH;
+
+    ImGui::SetNextWindowPos(ImVec2(barX, barY), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(barW, barH), ImGuiCond_Always);
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar |
+                             ImGuiWindowFlags_NoScrollbar;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.05f, 0.05f, 0.05f, 0.9f));
+
+    if (ImGui::Begin("##ActionBar", nullptr, flags)) {
+        const auto& bar = gameHandler.getActionBar();
+        static const char* keyLabels[] = {"1","2","3","4","5","6","7","8","9","0","-","="};
+
+        for (int i = 0; i < 12; ++i) {
+            if (i > 0) ImGui::SameLine(0, spacing);
+
+            ImGui::BeginGroup();
+            ImGui::PushID(i);
+
+            const auto& slot = bar[i];
+            bool onCooldown = !slot.isReady();
+
+            if (onCooldown) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 0.8f));
+            } else if (slot.isEmpty()) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 0.8f));
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.5f, 0.9f));
+            }
+
+            char label[32];
+            if (slot.type == game::ActionBarSlot::SPELL) {
+                snprintf(label, sizeof(label), "S%u", slot.id);
+            } else {
+                snprintf(label, sizeof(label), "--");
+            }
+
+            if (ImGui::Button(label, ImVec2(slotSize, slotSize))) {
+                if (slot.type == game::ActionBarSlot::SPELL && slot.isReady()) {
+                    uint64_t target = gameHandler.hasTarget() ? gameHandler.getTargetGuid() : 0;
+                    gameHandler.castSpell(slot.id, target);
+                }
+            }
+            ImGui::PopStyleColor();
+
+            // Cooldown overlay text
+            if (onCooldown) {
+                char cdText[16];
+                snprintf(cdText, sizeof(cdText), "%.0f", slot.cooldownRemaining);
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() - slotSize / 2 - 8);
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "%s", cdText);
+            }
+
+            // Key label below
+            ImGui::TextDisabled("%s", keyLabels[i]);
+
+            ImGui::PopID();
+            ImGui::EndGroup();
+        }
+    }
+    ImGui::End();
+
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+}
+
+// ============================================================
+// Cast Bar (Phase 3)
+// ============================================================
+
+void GameScreen::renderCastBar(game::GameHandler& gameHandler) {
+    if (!gameHandler.isCasting()) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+    float screenH = window ? static_cast<float>(window->getHeight()) : 720.0f;
+
+    float barW = 300.0f;
+    float barX = (screenW - barW) / 2.0f;
+    float barY = screenH - 120.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(barX, barY), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(barW, 40), ImGuiCond_Always);
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar |
+                             ImGuiWindowFlags_NoScrollbar;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.9f));
+
+    if (ImGui::Begin("##CastBar", nullptr, flags)) {
+        float progress = gameHandler.getCastProgress();
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.6f, 0.2f, 1.0f));
+
+        char overlay[64];
+        snprintf(overlay, sizeof(overlay), "Spell %u (%.1fs)",
+                 gameHandler.getCurrentCastSpellId(), gameHandler.getCastTimeRemaining());
+        ImGui::ProgressBar(progress, ImVec2(-1, 20), overlay);
+        ImGui::PopStyleColor();
+    }
+    ImGui::End();
+
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+}
+
+// ============================================================
+// Floating Combat Text (Phase 2)
+// ============================================================
+
+void GameScreen::renderCombatText(game::GameHandler& gameHandler) {
+    const auto& entries = gameHandler.getCombatText();
+    if (entries.empty()) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+
+    // Render combat text entries overlaid on screen
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(screenW, 400));
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration |
+                             ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav;
+
+    if (ImGui::Begin("##CombatText", nullptr, flags)) {
+        float centerX = screenW / 2.0f;
+        int index = 0;
+        for (const auto& entry : entries) {
+            float alpha = 1.0f - (entry.age / game::CombatTextEntry::LIFETIME);
+            float yOffset = 200.0f - entry.age * 60.0f;
+
+            ImVec4 color;
+            char text[64];
+            switch (entry.type) {
+                case game::CombatTextEntry::MELEE_DAMAGE:
+                case game::CombatTextEntry::SPELL_DAMAGE:
+                    snprintf(text, sizeof(text), "-%d", entry.amount);
+                    color = entry.isPlayerSource ?
+                        ImVec4(1.0f, 1.0f, 0.3f, alpha) :   // Outgoing = yellow
+                        ImVec4(1.0f, 0.3f, 0.3f, alpha);     // Incoming = red
+                    break;
+                case game::CombatTextEntry::CRIT_DAMAGE:
+                    snprintf(text, sizeof(text), "-%d!", entry.amount);
+                    color = ImVec4(1.0f, 0.5f, 0.0f, alpha);  // Orange for crit
+                    break;
+                case game::CombatTextEntry::HEAL:
+                    snprintf(text, sizeof(text), "+%d", entry.amount);
+                    color = ImVec4(0.3f, 1.0f, 0.3f, alpha);
+                    break;
+                case game::CombatTextEntry::CRIT_HEAL:
+                    snprintf(text, sizeof(text), "+%d!", entry.amount);
+                    color = ImVec4(0.3f, 1.0f, 0.3f, alpha);
+                    break;
+                case game::CombatTextEntry::MISS:
+                    snprintf(text, sizeof(text), "Miss");
+                    color = ImVec4(0.7f, 0.7f, 0.7f, alpha);
+                    break;
+                case game::CombatTextEntry::DODGE:
+                    snprintf(text, sizeof(text), "Dodge");
+                    color = ImVec4(0.7f, 0.7f, 0.7f, alpha);
+                    break;
+                case game::CombatTextEntry::PARRY:
+                    snprintf(text, sizeof(text), "Parry");
+                    color = ImVec4(0.7f, 0.7f, 0.7f, alpha);
+                    break;
+                default:
+                    snprintf(text, sizeof(text), "%d", entry.amount);
+                    color = ImVec4(1.0f, 1.0f, 1.0f, alpha);
+                    break;
+            }
+
+            // Stagger entries horizontally
+            float xOffset = centerX + (index % 3 - 1) * 80.0f;
+            ImGui::SetCursorPos(ImVec2(xOffset, yOffset));
+            ImGui::TextColored(color, "%s", text);
+            index++;
+        }
+    }
+    ImGui::End();
+}
+
+// ============================================================
+// Party Frames (Phase 4)
+// ============================================================
+
+void GameScreen::renderPartyFrames(game::GameHandler& gameHandler) {
+    if (!gameHandler.isInGroup()) return;
+
+    const auto& partyData = gameHandler.getPartyData();
+    float frameY = 120.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(10.0f, frameY), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(200.0f, 0.0f), ImGuiCond_Always);
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar |
+                             ImGuiWindowFlags_AlwaysAutoResize;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.8f));
+
+    if (ImGui::Begin("##PartyFrames", nullptr, flags)) {
+        for (const auto& member : partyData.members) {
+            ImGui::PushID(static_cast<int>(member.guid));
+
+            ImVec4 nameColor = member.isOnline ?
+                ImVec4(0.3f, 0.8f, 1.0f, 1.0f) :
+                ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+
+            // Clickable name to target
+            if (ImGui::Selectable(member.name.c_str(), gameHandler.getTargetGuid() == member.guid)) {
+                gameHandler.setTarget(member.guid);
+            }
+
+            // Try to show health from entity
+            auto entity = gameHandler.getEntityManager().getEntity(member.guid);
+            if (entity && (entity->getType() == game::ObjectType::PLAYER || entity->getType() == game::ObjectType::UNIT)) {
+                auto unit = std::static_pointer_cast<game::Unit>(entity);
+                uint32_t hp = unit->getHealth();
+                uint32_t maxHp = unit->getMaxHealth();
+                if (maxHp > 0) {
+                    float pct = static_cast<float>(hp) / static_cast<float>(maxHp);
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+                        pct > 0.5f ? ImVec4(0.2f, 0.8f, 0.2f, 1.0f) :
+                        pct > 0.2f ? ImVec4(0.8f, 0.8f, 0.2f, 1.0f) :
+                                     ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+                    ImGui::ProgressBar(pct, ImVec2(-1, 12), "");
+                    ImGui::PopStyleColor();
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::PopID();
+        }
+    }
+    ImGui::End();
+
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+}
+
+// ============================================================
+// Group Invite Popup (Phase 4)
+// ============================================================
+
+void GameScreen::renderGroupInvitePopup(game::GameHandler& gameHandler) {
+    if (!gameHandler.hasPendingGroupInvite()) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(screenW / 2 - 150, 200), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_Always);
+
+    if (ImGui::Begin("Group Invite", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize)) {
+        ImGui::Text("%s has invited you to a group.", gameHandler.getPendingInviterName().c_str());
+        ImGui::Spacing();
+
+        if (ImGui::Button("Accept", ImVec2(130, 30))) {
+            gameHandler.acceptGroupInvite();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Decline", ImVec2(130, 30))) {
+            gameHandler.declineGroupInvite();
+        }
+    }
+    ImGui::End();
+}
+
+// ============================================================
+// Buff/Debuff Bar (Phase 3)
+// ============================================================
+
+void GameScreen::renderBuffBar(game::GameHandler& gameHandler) {
+    const auto& auras = gameHandler.getPlayerAuras();
+    if (auras.empty()) return;
+
+    // Count non-empty auras
+    int activeCount = 0;
+    for (const auto& a : auras) {
+        if (!a.isEmpty()) activeCount++;
+    }
+    if (activeCount == 0) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(screenW - 400, 30), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(390, 0), ImGuiCond_Always);
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar |
+                             ImGuiWindowFlags_AlwaysAutoResize;
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+    if (ImGui::Begin("##BuffBar", nullptr, flags)) {
+        int shown = 0;
+        for (size_t i = 0; i < auras.size() && shown < 16; ++i) {
+            const auto& aura = auras[i];
+            if (aura.isEmpty()) continue;
+
+            if (shown > 0 && shown % 8 != 0) ImGui::SameLine();
+
+            ImGui::PushID(static_cast<int>(i));
+
+            // Green border for buffs, red for debuffs
+            bool isBuff = (aura.flags & 0x02) != 0; // POSITIVE flag
+            ImVec4 borderColor = isBuff ? ImVec4(0.2f, 0.8f, 0.2f, 1.0f) : ImVec4(0.8f, 0.2f, 0.2f, 1.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button, borderColor);
+
+            char label[16];
+            snprintf(label, sizeof(label), "%u", aura.spellId);
+            if (ImGui::Button(label, ImVec2(40, 40))) {
+                // Right-click to cancel own buffs
+                if (isBuff) {
+                    gameHandler.cancelAura(aura.spellId);
+                }
+            }
+            ImGui::PopStyleColor();
+
+            // Duration text
+            if (aura.durationMs > 0) {
+                int seconds = aura.durationMs / 1000;
+                if (seconds < 60) {
+                    ImGui::Text("%ds", seconds);
+                } else {
+                    ImGui::Text("%dm", seconds / 60);
+                }
+            }
+
+            ImGui::PopID();
+            shown++;
+        }
+    }
+    ImGui::End();
+
+    ImGui::PopStyleColor();
+}
+
+// ============================================================
+// Loot Window (Phase 5)
+// ============================================================
+
+void GameScreen::renderLootWindow(game::GameHandler& gameHandler) {
+    if (!gameHandler.isLootWindowOpen()) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(screenW / 2 - 150, 200), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_Always);
+
+    bool open = true;
+    if (ImGui::Begin("Loot", &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize)) {
+        const auto& loot = gameHandler.getCurrentLoot();
+
+        // Gold
+        if (loot.gold > 0) {
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "%ug %us %uc",
+                               loot.getGold(), loot.getSilver(), loot.getCopper());
+            ImGui::Separator();
+        }
+
+        // Items
+        for (const auto& item : loot.items) {
+            ImGui::PushID(item.slotIndex);
+            char label[64];
+            snprintf(label, sizeof(label), "Item %u (x%u)", item.itemId, item.count);
+            if (ImGui::Selectable(label)) {
+                gameHandler.lootItem(item.slotIndex);
+            }
+            ImGui::PopID();
+        }
+
+        if (loot.items.empty() && loot.gold == 0) {
+            ImGui::TextDisabled("Empty");
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("Close", ImVec2(-1, 0))) {
+            gameHandler.closeLoot();
+        }
+    }
+    ImGui::End();
+
+    if (!open) {
+        gameHandler.closeLoot();
+    }
+}
+
+// ============================================================
+// Gossip Window (Phase 5)
+// ============================================================
+
+void GameScreen::renderGossipWindow(game::GameHandler& gameHandler) {
+    if (!gameHandler.isGossipWindowOpen()) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(screenW / 2 - 200, 150), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Always);
+
+    bool open = true;
+    if (ImGui::Begin("NPC Dialog", &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize)) {
+        const auto& gossip = gameHandler.getCurrentGossip();
+
+        // NPC name (from creature cache)
+        auto npcEntity = gameHandler.getEntityManager().getEntity(gossip.npcGuid);
+        if (npcEntity && npcEntity->getType() == game::ObjectType::UNIT) {
+            auto unit = std::static_pointer_cast<game::Unit>(npcEntity);
+            if (!unit->getName().empty()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "%s", unit->getName().c_str());
+                ImGui::Separator();
+            }
+        }
+
+        ImGui::Spacing();
+
+        // Gossip options
+        static const char* gossipIcons[] = {"[Chat]", "[Vendor]", "[Taxi]", "[Trainer]", "[Spiritguide]",
+                                            "[Tabardvendor]", "[Battlemaster]", "[Banker]", "[Petitioner]",
+                                            "[Tabarddesigner]", "[Auctioneer]"};
+
+        for (const auto& opt : gossip.options) {
+            ImGui::PushID(static_cast<int>(opt.id));
+            const char* icon = (opt.icon < 11) ? gossipIcons[opt.icon] : "[Option]";
+            char label[256];
+            snprintf(label, sizeof(label), "%s %s", icon, opt.text.c_str());
+            if (ImGui::Selectable(label)) {
+                gameHandler.selectGossipOption(opt.id);
+            }
+            ImGui::PopID();
+        }
+
+        // Quest items
+        if (!gossip.quests.empty()) {
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.3f, 1.0f), "Quests:");
+            for (const auto& quest : gossip.quests) {
+                ImGui::BulletText("[%d] %s", quest.questLevel, quest.title.c_str());
+            }
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("Close", ImVec2(-1, 0))) {
+            gameHandler.closeGossip();
+        }
+    }
+    ImGui::End();
+
+    if (!open) {
+        gameHandler.closeGossip();
+    }
+}
+
+// ============================================================
+// Vendor Window (Phase 5)
+// ============================================================
+
+void GameScreen::renderVendorWindow(game::GameHandler& gameHandler) {
+    if (!gameHandler.isVendorWindowOpen()) return;
+
+    auto* window = core::Application::getInstance().getWindow();
+    float screenW = window ? static_cast<float>(window->getWidth()) : 1280.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(screenW / 2 - 200, 100), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(450, 400), ImGuiCond_FirstUseEver);
+
+    bool open = true;
+    if (ImGui::Begin("Vendor", &open)) {
+        const auto& vendor = gameHandler.getVendorItems();
+
+        if (vendor.items.empty()) {
+            ImGui::TextDisabled("This vendor has nothing for sale.");
+        } else {
+            if (ImGui::BeginTable("VendorTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+                ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Price", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                ImGui::TableSetupColumn("Stock", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                ImGui::TableSetupColumn("Buy", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+                ImGui::TableHeadersRow();
+
+                for (const auto& item : vendor.items) {
+                    ImGui::TableNextRow();
+                    ImGui::PushID(static_cast<int>(item.slot));
+
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("Item %u", item.itemId);
+
+                    ImGui::TableSetColumnIndex(1);
+                    uint32_t g = item.buyPrice / 10000;
+                    uint32_t s = (item.buyPrice / 100) % 100;
+                    uint32_t c = item.buyPrice % 100;
+                    ImGui::Text("%ug %us %uc", g, s, c);
+
+                    ImGui::TableSetColumnIndex(2);
+                    if (item.maxCount < 0) {
+                        ImGui::Text("Inf");
+                    } else {
+                        ImGui::Text("%d", item.maxCount);
+                    }
+
+                    ImGui::TableSetColumnIndex(3);
+                    if (ImGui::SmallButton("Buy")) {
+                        gameHandler.buyItem(vendor.vendorGuid, item.itemId, item.slot, 1);
+                    }
+
+                    ImGui::PopID();
+                }
+
+                ImGui::EndTable();
+            }
+        }
+    }
+    ImGui::End();
+
+    if (!open) {
+        // Close vendor - just hide UI, no server packet needed
+        // The vendor window state will be reset on next interaction
     }
 }
 

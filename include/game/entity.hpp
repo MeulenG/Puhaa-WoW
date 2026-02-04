@@ -129,15 +129,33 @@ public:
     uint32_t getMaxHealth() const { return maxHealth; }
     void setMaxHealth(uint32_t h) { maxHealth = h; }
 
+    // Power (mana/rage/energy)
+    uint32_t getPower() const { return power; }
+    void setPower(uint32_t p) { power = p; }
+
+    uint32_t getMaxPower() const { return maxPower; }
+    void setMaxPower(uint32_t p) { maxPower = p; }
+
+    uint8_t getPowerType() const { return powerType; }
+    void setPowerType(uint8_t t) { powerType = t; }
+
     // Level
     uint32_t getLevel() const { return level; }
     void setLevel(uint32_t l) { level = l; }
+
+    // Entry ID (creature template entry)
+    uint32_t getEntry() const { return entry; }
+    void setEntry(uint32_t e) { entry = e; }
 
 protected:
     std::string name;
     uint32_t health = 0;
     uint32_t maxHealth = 0;
+    uint32_t power = 0;
+    uint32_t maxPower = 0;
+    uint8_t powerType = 0;   // 0=mana, 1=rage, 2=focus, 3=energy
     uint32_t level = 1;
+    uint32_t entry = 0;
 };
 
 /**

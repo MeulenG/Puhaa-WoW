@@ -35,9 +35,9 @@ private:
     int selectedChatType = 0;  // 0=SAY, 1=YELL, 2=PARTY, etc.
 
     // UI state
-    bool showEntityWindow = true;
+    bool showEntityWindow = false;
     bool showChatWindow = true;
-    bool showPlayerInfo = true;
+    bool showPlayerInfo = false;
     bool refocusChatInput = false;
 
     /**
@@ -94,6 +94,17 @@ private:
      * Re-composite character skin texture from current equipment
      */
     void updateCharacterTextures(game::Inventory& inventory);
+
+    // ---- New UI renders ----
+    void renderActionBar(game::GameHandler& gameHandler);
+    void renderCastBar(game::GameHandler& gameHandler);
+    void renderCombatText(game::GameHandler& gameHandler);
+    void renderPartyFrames(game::GameHandler& gameHandler);
+    void renderGroupInvitePopup(game::GameHandler& gameHandler);
+    void renderBuffBar(game::GameHandler& gameHandler);
+    void renderLootWindow(game::GameHandler& gameHandler);
+    void renderGossipWindow(game::GameHandler& gameHandler);
+    void renderVendorWindow(game::GameHandler& gameHandler);
 
     /**
      * Inventory screen

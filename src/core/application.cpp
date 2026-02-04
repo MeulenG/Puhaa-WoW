@@ -189,6 +189,7 @@ void Application::run() {
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                     int newWidth = event.window.data1;
                     int newHeight = event.window.data2;
+                    window->setSize(newWidth, newHeight);
                     glViewport(0, 0, newWidth, newHeight);
                     if (renderer && renderer->getCamera()) {
                         renderer->getCamera()->setAspectRatio(static_cast<float>(newWidth) / newHeight);
@@ -629,8 +630,8 @@ void Application::update(float deltaTime) {
             break;
     }
 
-    // Update renderer (camera, etc.)
-    if (renderer) {
+    // Update renderer (camera, etc.) only when in-game
+    if (renderer && state == AppState::IN_GAME) {
         renderer->update(deltaTime);
     }
 
@@ -647,25 +648,13 @@ void Application::render() {
 
     renderer->beginFrame();
 
-    // Always render atmospheric background (sky, stars, clouds, etc.)
-    // This provides a nice animated background for login/UI screens
-    // Terrain/characters only render if loaded (in-game)
-    switch (state) {
-        case AppState::IN_GAME:
-            // Render full world with terrain and entities
-            if (world) {
-                renderer->renderWorld(world.get());
-            } else {
-                // Fallback: render just atmosphere if world not loaded
-                renderer->renderWorld(nullptr);
-            }
-            break;
-
-        default:
-            // Login/UI screens: render atmospheric background only
-            // (terrain/water/characters won't render as they're not loaded)
+    // Only render 3D world when in-game (after server connect or single-player)
+    if (state == AppState::IN_GAME) {
+        if (world) {
+            renderer->renderWorld(world.get());
+        } else {
             renderer->renderWorld(nullptr);
-            break;
+        }
     }
 
     // Render performance HUD (within ImGui frame, before UI ends the frame)
