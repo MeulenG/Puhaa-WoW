@@ -52,6 +52,11 @@ struct M2ModelGPU {
 
     std::string name;
 
+    // Skeletal animation data (kept from M2Model for bone computation)
+    std::vector<pipeline::M2Bone> bones;
+    std::vector<pipeline::M2Sequence> sequences;
+    bool hasAnimation = false;  // True if any bone has keyframes
+
     bool isValid() const { return vao != 0 && indexCount > 0; }
 };
 
@@ -70,9 +75,12 @@ struct M2Instance {
     glm::vec3 worldBoundsMax;
 
     // Animation state
-    float animTime = 0.0f;       // Current animation time
+    float animTime = 0.0f;       // Current animation time (ms)
     float animSpeed = 1.0f;      // Animation playback speed
     uint32_t animId = 0;         // Current animation sequence
+    int currentSequenceIndex = 0;// Index into sequences array
+    float animDuration = 0.0f;   // Duration of current animation (ms)
+    std::vector<glm::mat4> boneMatrices;
 
     void updateModelMatrix();
 };

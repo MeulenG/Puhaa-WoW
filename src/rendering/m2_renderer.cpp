@@ -9,6 +9,7 @@
 #include <cctype>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <unordered_set>
 #include <algorithm>
 #include <cmath>
@@ -192,18 +193,20 @@ bool M2Renderer::initialize(pipeline::AssetManager* assets) {
 
     LOG_INFO("Initializing M2 renderer...");
 
-    // Create M2 shader with simple animation support
+    // Create M2 shader with skeletal animation support
     const char* vertexSrc = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aNormal;
         layout (location = 2) in vec2 aTexCoord;
+        layout (location = 3) in vec4 aBoneWeights;
+        layout (location = 4) in vec4 aBoneIndicesF;
 
         uniform mat4 uModel;
         uniform mat4 uView;
         uniform mat4 uProjection;
-        uniform float uTime;
-        uniform float uAnimScale;  // 0 = no animation, 1 = full animation
+        uniform bool uUseBones;
+        uniform mat4 uBones[128];
 
         out vec3 FragPos;
         out vec3 Normal;
@@ -211,19 +214,21 @@ bool M2Renderer::initialize(pipeline::AssetManager* assets) {
 
         void main() {
             vec3 pos = aPos;
+            vec3 norm = aNormal;
 
-            // Simple swaying animation for vegetation/doodads
-            // Only animate vertices above ground level (positive Y in model space)
-            if (uAnimScale > 0.0 && pos.z > 0.5) {
-                float sway = sin(uTime * 2.0 + pos.x * 0.5 + pos.y * 0.3) * 0.1;
-                float heightFactor = clamp((pos.z - 0.5) / 3.0, 0.0, 1.0);
-                pos.x += sway * heightFactor * uAnimScale;
-                pos.y += sway * 0.5 * heightFactor * uAnimScale;
+            if (uUseBones) {
+                ivec4 bi = ivec4(aBoneIndicesF);
+                mat4 boneTransform = uBones[bi.x] * aBoneWeights.x
+                                   + uBones[bi.y] * aBoneWeights.y
+                                   + uBones[bi.z] * aBoneWeights.z
+                                   + uBones[bi.w] * aBoneWeights.w;
+                pos = vec3(boneTransform * vec4(aPos, 1.0));
+                norm = mat3(boneTransform) * aNormal;
             }
 
             vec4 worldPos = uModel * vec4(pos, 1.0);
             FragPos = worldPos.xyz;
-            Normal = mat3(uModel) * aNormal;
+            Normal = mat3(uModel) * norm;
             TexCoord = aTexCoord;
 
             gl_Position = uProjection * uView * worldPos;
@@ -446,10 +451,22 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
     glGenVertexArrays(1, &gpuModel.vao);
     glBindVertexArray(gpuModel.vao);
 
+    // Store bone/sequence data for animation
+    gpuModel.bones = model.bones;
+    gpuModel.sequences = model.sequences;
+    gpuModel.hasAnimation = false;
+    for (const auto& bone : model.bones) {
+        if (bone.translation.hasData() || bone.rotation.hasData() || bone.scale.hasData()) {
+            gpuModel.hasAnimation = true;
+            break;
+        }
+    }
+
     // Create VBO with interleaved vertex data
-    // Format: position (3), normal (3), texcoord (2)
+    // Format: position (3), normal (3), texcoord (2), boneWeights (4), boneIndices (4 as float)
+    const size_t floatsPerVertex = 16;
     std::vector<float> vertexData;
-    vertexData.reserve(model.vertices.size() * 8);
+    vertexData.reserve(model.vertices.size() * floatsPerVertex);
 
     for (const auto& v : model.vertices) {
         vertexData.push_back(v.position.x);
@@ -460,6 +477,20 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
         vertexData.push_back(v.normal.z);
         vertexData.push_back(v.texCoords[0].x);
         vertexData.push_back(v.texCoords[0].y);
+        // Bone weights (normalized 0-1)
+        float w0 = v.boneWeights[0] / 255.0f;
+        float w1 = v.boneWeights[1] / 255.0f;
+        float w2 = v.boneWeights[2] / 255.0f;
+        float w3 = v.boneWeights[3] / 255.0f;
+        vertexData.push_back(w0);
+        vertexData.push_back(w1);
+        vertexData.push_back(w2);
+        vertexData.push_back(w3);
+        // Bone indices (clamped to max 127 for uniform array)
+        vertexData.push_back(static_cast<float>(std::min(v.boneIndices[0], uint8_t(127))));
+        vertexData.push_back(static_cast<float>(std::min(v.boneIndices[1], uint8_t(127))));
+        vertexData.push_back(static_cast<float>(std::min(v.boneIndices[2], uint8_t(127))));
+        vertexData.push_back(static_cast<float>(std::min(v.boneIndices[3], uint8_t(127))));
     }
 
     glGenBuffers(1, &gpuModel.vbo);
@@ -474,7 +505,7 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
                  model.indices.data(), GL_STATIC_DRAW);
 
     // Set up vertex attributes
-    const size_t stride = 8 * sizeof(float);
+    const size_t stride = floatsPerVertex * sizeof(float);
 
     // Position
     glEnableVertexAttribArray(0);
@@ -487,6 +518,14 @@ bool M2Renderer::loadModel(const pipeline::M2Model& model, uint32_t modelId) {
     // TexCoord
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+
+    // Bone Weights
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8 * sizeof(float)));
+
+    // Bone Indices (as integer attribute)
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, (void*)(12 * sizeof(float)));
 
     glBindVertexArray(0);
 
@@ -559,6 +598,14 @@ uint32_t M2Renderer::createInstance(uint32_t modelId, const glm::vec3& position,
     getTightCollisionBounds(models[modelId], localMin, localMax);
     transformAABB(instance.modelMatrix, localMin, localMax, instance.worldBoundsMin, instance.worldBoundsMax);
 
+    // Initialize animation: play first sequence (usually Stand/Idle)
+    const auto& mdl = models[modelId];
+    if (mdl.hasAnimation && !mdl.sequences.empty()) {
+        instance.currentSequenceIndex = 0;
+        instance.animDuration = static_cast<float>(mdl.sequences[0].duration);
+        instance.animTime = static_cast<float>(rand() % std::max(1u, mdl.sequences[0].duration));
+    }
+
     instances.push_back(instance);
     size_t idx = instances.size() - 1;
     instanceIndexById[instance.id] = idx;
@@ -593,7 +640,15 @@ uint32_t M2Renderer::createInstanceWithMatrix(uint32_t modelId, const glm::mat4&
     glm::vec3 localMin, localMax;
     getTightCollisionBounds(models[modelId], localMin, localMax);
     transformAABB(instance.modelMatrix, localMin, localMax, instance.worldBoundsMin, instance.worldBoundsMax);
-    instance.animTime = static_cast<float>(rand()) / RAND_MAX * 10.0f;  // Random start time
+    // Initialize animation: play first sequence (usually Stand/Idle)
+    const auto& mdl2 = models[modelId];
+    if (mdl2.hasAnimation && !mdl2.sequences.empty()) {
+        instance.currentSequenceIndex = 0;
+        instance.animDuration = static_cast<float>(mdl2.sequences[0].duration);
+        instance.animTime = static_cast<float>(rand() % std::max(1u, mdl2.sequences[0].duration));
+    } else {
+        instance.animTime = static_cast<float>(rand()) / RAND_MAX * 10.0f;
+    }
 
     instances.push_back(instance);
     size_t idx = instances.size() - 1;
@@ -611,10 +666,109 @@ uint32_t M2Renderer::createInstanceWithMatrix(uint32_t modelId, const glm::mat4&
     return instance.id;
 }
 
+// --- Bone animation helpers (same logic as CharacterRenderer) ---
+
+static int findKeyframeIndex(const std::vector<uint32_t>& timestamps, float time) {
+    if (timestamps.empty()) return -1;
+    if (timestamps.size() == 1) return 0;
+    for (size_t i = 0; i < timestamps.size() - 1; i++) {
+        if (time < static_cast<float>(timestamps[i + 1])) {
+            return static_cast<int>(i);
+        }
+    }
+    return static_cast<int>(timestamps.size() - 2);
+}
+
+static glm::vec3 interpVec3(const pipeline::M2AnimationTrack& track,
+                             int seqIdx, float time, const glm::vec3& def) {
+    if (!track.hasData()) return def;
+    if (seqIdx < 0 || seqIdx >= static_cast<int>(track.sequences.size())) return def;
+    const auto& keys = track.sequences[seqIdx];
+    if (keys.timestamps.empty() || keys.vec3Values.empty()) return def;
+    auto safe = [&](const glm::vec3& v) -> glm::vec3 {
+        if (std::isnan(v.x) || std::isnan(v.y) || std::isnan(v.z)) return def;
+        return v;
+    };
+    if (keys.vec3Values.size() == 1) return safe(keys.vec3Values[0]);
+    int idx = findKeyframeIndex(keys.timestamps, time);
+    if (idx < 0) return def;
+    size_t i0 = static_cast<size_t>(idx);
+    size_t i1 = std::min(i0 + 1, keys.vec3Values.size() - 1);
+    if (i0 == i1) return safe(keys.vec3Values[i0]);
+    float t0 = static_cast<float>(keys.timestamps[i0]);
+    float t1 = static_cast<float>(keys.timestamps[i1]);
+    float dur = t1 - t0;
+    float t = (dur > 0.0f) ? glm::clamp((time - t0) / dur, 0.0f, 1.0f) : 0.0f;
+    return safe(glm::mix(keys.vec3Values[i0], keys.vec3Values[i1], t));
+}
+
+static glm::quat interpQuat(const pipeline::M2AnimationTrack& track,
+                              int seqIdx, float time) {
+    glm::quat identity(1.0f, 0.0f, 0.0f, 0.0f);
+    if (!track.hasData()) return identity;
+    if (seqIdx < 0 || seqIdx >= static_cast<int>(track.sequences.size())) return identity;
+    const auto& keys = track.sequences[seqIdx];
+    if (keys.timestamps.empty() || keys.quatValues.empty()) return identity;
+    auto safe = [&](const glm::quat& q) -> glm::quat {
+        float len = glm::length(q);
+        if (len < 0.001f || std::isnan(len)) return identity;
+        return q;
+    };
+    if (keys.quatValues.size() == 1) return safe(keys.quatValues[0]);
+    int idx = findKeyframeIndex(keys.timestamps, time);
+    if (idx < 0) return identity;
+    size_t i0 = static_cast<size_t>(idx);
+    size_t i1 = std::min(i0 + 1, keys.quatValues.size() - 1);
+    if (i0 == i1) return safe(keys.quatValues[i0]);
+    float t0 = static_cast<float>(keys.timestamps[i0]);
+    float t1 = static_cast<float>(keys.timestamps[i1]);
+    float dur = t1 - t0;
+    float t = (dur > 0.0f) ? glm::clamp((time - t0) / dur, 0.0f, 1.0f) : 0.0f;
+    return glm::slerp(safe(keys.quatValues[i0]), safe(keys.quatValues[i1]), t);
+}
+
+static void computeBoneMatrices(const M2ModelGPU& model, M2Instance& instance) {
+    size_t numBones = model.bones.size();
+    if (numBones == 0) return;
+    instance.boneMatrices.resize(numBones);
+
+    for (size_t i = 0; i < numBones; i++) {
+        const auto& bone = model.bones[i];
+        glm::vec3 trans = interpVec3(bone.translation, instance.currentSequenceIndex, instance.animTime, glm::vec3(0.0f));
+        glm::quat rot = interpQuat(bone.rotation, instance.currentSequenceIndex, instance.animTime);
+        glm::vec3 scl = interpVec3(bone.scale, instance.currentSequenceIndex, instance.animTime, glm::vec3(1.0f));
+
+        glm::mat4 local = glm::translate(glm::mat4(1.0f), bone.pivot);
+        local = glm::translate(local, trans);
+        local *= glm::toMat4(rot);
+        local = glm::scale(local, scl);
+        local = glm::translate(local, -bone.pivot);
+
+        if (bone.parentBone >= 0 && static_cast<size_t>(bone.parentBone) < numBones) {
+            instance.boneMatrices[i] = instance.boneMatrices[bone.parentBone] * local;
+        } else {
+            instance.boneMatrices[i] = local;
+        }
+    }
+}
+
 void M2Renderer::update(float deltaTime) {
-    // Advance animation time for all instances
+    float dtMs = deltaTime * 1000.0f;  // Convert to milliseconds for keyframe lookup
     for (auto& instance : instances) {
-        instance.animTime += deltaTime * instance.animSpeed;
+        instance.animTime += dtMs * instance.animSpeed;
+
+        auto it = models.find(instance.modelId);
+        if (it == models.end()) continue;
+        const M2ModelGPU& model = it->second;
+
+        if (!model.hasAnimation) continue;
+
+        // Loop animation
+        if (instance.animDuration > 0.0f && instance.animTime >= instance.animDuration) {
+            instance.animTime = std::fmod(instance.animTime, instance.animDuration);
+        }
+
+        computeBoneMatrices(model, instance);
     }
 }
 
@@ -695,9 +849,15 @@ void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::
         }
 
         shader->setUniform("uModel", instance.modelMatrix);
-        shader->setUniform("uTime", instance.animTime);
-        shader->setUniform("uAnimScale", 0.0f);  // Disabled - proper M2 animation needs bone/particle systems
         shader->setUniform("uFadeAlpha", fadeAlpha);
+
+        // Upload bone matrices if model has skeletal animation
+        bool useBones = model.hasAnimation && !instance.boneMatrices.empty();
+        shader->setUniform("uUseBones", useBones);
+        if (useBones) {
+            int numBones = std::min(static_cast<int>(instance.boneMatrices.size()), 128);
+            shader->setUniformMatrixArray("uBones[0]", instance.boneMatrices.data(), numBones);
+        }
 
         // Disable depth writes for fading objects to avoid z-fighting
         if (fadeAlpha < 1.0f) {

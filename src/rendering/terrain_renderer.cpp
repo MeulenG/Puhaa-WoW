@@ -301,6 +301,15 @@ void TerrainRenderer::render(const Camera& camera) {
     // Use shader
     shader->use();
 
+    // Bind sampler uniforms to texture units (constant, only needs to be set once per use)
+    shader->setUniform("uBaseTexture", 0);
+    shader->setUniform("uLayer1Texture", 1);
+    shader->setUniform("uLayer2Texture", 2);
+    shader->setUniform("uLayer3Texture", 3);
+    shader->setUniform("uLayer1Alpha", 4);
+    shader->setUniform("uLayer2Alpha", 5);
+    shader->setUniform("uLayer3Alpha", 6);
+
     // Set view/projection matrices
     glm::mat4 view = camera.getViewMatrix();
     glm::mat4 projection = camera.getProjectionMatrix();
