@@ -36,6 +36,7 @@ std::optional<float> selectReachableFloor(const std::optional<float>& terrainH,
 
 CameraController::CameraController(Camera* cam) : camera(cam) {
     yaw = defaultYaw;
+    facingYaw = defaultYaw;
     pitch = defaultPitch;
     reset();
 }
@@ -90,6 +91,7 @@ void CameraController::update(float deltaTime) {
     }
     if (nowTurnLeft || nowTurnRight) {
         camera->setRotation(yaw, pitch);
+        facingYaw = yaw;
     }
 
     // Select physics constants based on mode
@@ -129,12 +131,14 @@ void CameraController::update(float deltaTime) {
 
     // Get camera axes — project forward onto XY plane for walking
     glm::vec3 forward3D = camera->getForward();
-    glm::vec3 forward = glm::normalize(glm::vec3(forward3D.x, forward3D.y, 0.0f));
-    glm::vec3 right = camera->getRight();
-    right.z = 0.0f;
-    if (glm::length(right) > 0.001f) {
-        right = glm::normalize(right);
+    bool cameraDrivesFacing = rightMouseDown || mouseAutorun;
+    if (cameraDrivesFacing) {
+        facingYaw = yaw;
     }
+    float moveYaw = cameraDrivesFacing ? yaw : facingYaw;
+    float moveYawRad = glm::radians(moveYaw);
+    glm::vec3 forward(std::cos(moveYawRad), std::sin(moveYawRad), 0.0f);
+    glm::vec3 right(-std::sin(moveYawRad), std::cos(moveYawRad), 0.0f);
 
     // Toggle sit/crouch with X or C key (edge-triggered) — only when UI doesn't want keyboard
     bool xDown = !uiWantsKeyboard && (input.isKeyPressed(SDL_SCANCODE_X) || input.isKeyPressed(SDL_SCANCODE_C));
@@ -207,6 +211,27 @@ void CameraController::update(float deltaTime) {
             if (waterH && targetPos.z > *waterH - WATER_SURFACE_OFFSET) {
                 targetPos.z = *waterH - WATER_SURFACE_OFFSET;
                 if (verticalVelocity > 0.0f) verticalVelocity = 0.0f;
+            }
+
+            // Prevent sinking/clipping through world floor while swimming.
+            std::optional<float> floorH;
+            if (terrainManager) {
+                floorH = terrainManager->getHeightAt(targetPos.x, targetPos.y);
+            }
+            if (wmoRenderer) {
+                auto wh = wmoRenderer->getFloorHeight(targetPos.x, targetPos.y, targetPos.z + 5.0f);
+                if (wh && (!floorH || *wh > *floorH)) floorH = wh;
+            }
+            if (m2Renderer) {
+                auto mh = m2Renderer->getFloorHeight(targetPos.x, targetPos.y, targetPos.z);
+                if (mh && (!floorH || *mh > *floorH)) floorH = mh;
+            }
+            if (floorH) {
+                float swimFloor = *floorH + 0.30f;
+                if (targetPos.z < swimFloor) {
+                    targetPos.z = swimFloor;
+                    if (verticalVelocity < 0.0f) verticalVelocity = 0.0f;
+                }
             }
 
             grounded = false;
@@ -815,6 +840,7 @@ void CameraController::reset() {
     }
 
     yaw = defaultYaw;
+    facingYaw = defaultYaw;
     pitch = defaultPitch;
     verticalVelocity = 0.0f;
     grounded = true;

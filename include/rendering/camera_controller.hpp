@@ -37,6 +37,7 @@ public:
     float getMovementSpeed() const { return movementSpeed; }
     bool isMoving() const;
     float getYaw() const { return yaw; }
+    float getFacingYaw() const { return facingYaw; }
     bool isThirdPerson() const { return thirdPerson; }
     bool isGrounded() const { return grounded; }
     bool isJumping() const { return !grounded && verticalVelocity > 0.0f; }
@@ -74,6 +75,7 @@ private:
     // Stored rotation (avoids lossy forward-vector round-trip)
     float yaw = 180.0f;
     float pitch = -30.0f;
+    float facingYaw = 180.0f;  // Character-facing yaw (can differ from camera yaw)
 
     // Movement settings
     float movementSpeed = 50.0f;

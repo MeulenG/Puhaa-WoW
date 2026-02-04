@@ -1,0 +1,78 @@
+#pragma once
+
+#include "audio/footstep_manager.hpp"
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <random>
+#include <string>
+#include <vector>
+
+namespace wowee {
+namespace pipeline { class AssetManager; }
+namespace audio {
+
+class ActivitySoundManager {
+public:
+    ActivitySoundManager();
+    ~ActivitySoundManager();
+
+    bool initialize(pipeline::AssetManager* assets);
+    void shutdown();
+    void update(float deltaTime);
+    bool isInitialized() const { return initialized; }
+
+    void playJump();
+    void playLanding(FootstepSurface surface, bool hardLanding);
+    void setSwimmingState(bool swimming, bool moving);
+    void setCharacterVoiceProfile(const std::string& modelName);
+    void playWaterEnter();
+    void playWaterExit();
+
+private:
+    struct Sample {
+        std::string path;
+        std::vector<uint8_t> data;
+    };
+
+    struct SurfaceLandingSet {
+        std::vector<Sample> clips;
+    };
+
+    bool initialized = false;
+    pipeline::AssetManager* assetManager = nullptr;
+
+    std::vector<Sample> jumpClips;
+    std::vector<Sample> splashEnterClips;
+    std::vector<Sample> splashExitClips;
+    std::vector<Sample> swimLoopClips;
+    std::vector<Sample> hardLandClips;
+    std::array<SurfaceLandingSet, 7> landingSets;
+
+    bool swimmingActive = false;
+    bool swimMoving = false;
+    pid_t swimLoopPid = -1;
+    pid_t oneShotPid = -1;
+    std::string loopTempPath = "/tmp/wowee_swim_loop.wav";
+    std::string oneShotTempPath = "/tmp/wowee_activity.wav";
+    std::mt19937 rng;
+
+    std::chrono::steady_clock::time_point lastJumpAt{};
+    std::chrono::steady_clock::time_point lastLandAt{};
+    std::chrono::steady_clock::time_point lastSplashAt{};
+    std::string voiceProfileKey;
+
+    void preloadCandidates(std::vector<Sample>& out, const std::vector<std::string>& candidates);
+    void preloadLandingSet(FootstepSurface surface, const std::string& material);
+    void rebuildJumpClipsForProfile(const std::string& raceFolder, const std::string& raceBase, bool male);
+    void rebuildSwimLoopClipsForProfile(const std::string& raceFolder, const std::string& raceBase, bool male);
+    void rebuildHardLandClipsForProfile(const std::string& raceFolder, const std::string& raceBase, bool male);
+    bool playOneShot(const std::vector<Sample>& clips, float volume, float pitchLo, float pitchHi);
+    void startSwimLoop();
+    void stopSwimLoop();
+    void stopOneShot();
+    void reapProcesses();
+};
+
+} // namespace audio
+} // namespace wowee

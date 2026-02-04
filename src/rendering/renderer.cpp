@@ -28,6 +28,7 @@
 #include "game/zone_manager.hpp"
 #include "audio/music_manager.hpp"
 #include "audio/footstep_manager.hpp"
+#include "audio/activity_sound_manager.hpp"
 #include <GL/glew.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
@@ -190,6 +191,7 @@ bool Renderer::initialize(core::Window* win) {
     // Create music manager (initialized later with asset manager)
     musicManager = std::make_unique<audio::MusicManager>();
     footstepManager = std::make_unique<audio::FootstepManager>();
+    activitySoundManager = std::make_unique<audio::ActivitySoundManager>();
 
     LOG_INFO("Renderer initialized");
     return true;
@@ -265,6 +267,10 @@ void Renderer::shutdown() {
     if (footstepManager) {
         footstepManager->shutdown();
         footstepManager.reset();
+    }
+    if (activitySoundManager) {
+        activitySoundManager->shutdown();
+        activitySoundManager.reset();
     }
 
     zoneManager.reset();
@@ -647,13 +653,16 @@ void Renderer::update(float deltaTime) {
     // Sync character model position/rotation and animation with follow target
     if (characterInstanceId > 0 && characterRenderer && cameraController && cameraController->isThirdPerson()) {
         characterRenderer->setInstancePosition(characterInstanceId, characterPosition);
+        if (activitySoundManager) {
+            std::string modelName;
+            if (characterRenderer->getInstanceModelName(characterInstanceId, modelName)) {
+                activitySoundManager->setCharacterVoiceProfile(modelName);
+            }
+        }
 
-        // Keep facing decoupled from lateral movement:
-        // face camera when RMB is held, or with forward/back intent.
-        if (cameraController->isRightMouseHeld() ||
-            cameraController->isMovingForward() ||
-            cameraController->isMovingBackward()) {
-            characterYaw = cameraController->getYaw();
+        // Movement-facing comes from camera controller and is decoupled from LMB orbit.
+        if (cameraController->isMoving() || cameraController->isRightMouseHeld()) {
+            characterYaw = cameraController->getFacingYaw();
         } else if (targetPosition && !emoteActive && !cameraController->isMoving()) {
             // Face target when idle
             glm::vec3 toTarget = *targetPosition - characterPosition;
@@ -734,6 +743,51 @@ void Renderer::update(float deltaTime) {
             }
         } else {
             footstepNormInitialized = false;
+        }
+    }
+
+    // Activity SFX: animation/state-driven jump, landing, and swim loops/splashes.
+    if (activitySoundManager) {
+        activitySoundManager->update(deltaTime);
+        if (cameraController && cameraController->isThirdPerson()) {
+            bool grounded = cameraController->isGrounded();
+            bool jumping = cameraController->isJumping();
+            bool falling = cameraController->isFalling();
+            bool swimming = cameraController->isSwimming();
+            bool moving = cameraController->isMoving();
+
+            if (!sfxStateInitialized) {
+                sfxPrevGrounded = grounded;
+                sfxPrevJumping = jumping;
+                sfxPrevFalling = falling;
+                sfxPrevSwimming = swimming;
+                sfxStateInitialized = true;
+            }
+
+            if (jumping && !sfxPrevJumping && !swimming) {
+                activitySoundManager->playJump();
+            }
+
+            if (grounded && !sfxPrevGrounded) {
+                bool hardLanding = sfxPrevFalling;
+                activitySoundManager->playLanding(resolveFootstepSurface(), hardLanding);
+            }
+
+            if (swimming && !sfxPrevSwimming) {
+                activitySoundManager->playWaterEnter();
+            } else if (!swimming && sfxPrevSwimming) {
+                activitySoundManager->playWaterExit();
+            }
+
+            activitySoundManager->setSwimmingState(swimming, moving);
+
+            sfxPrevGrounded = grounded;
+            sfxPrevJumping = jumping;
+            sfxPrevFalling = falling;
+            sfxPrevSwimming = swimming;
+        } else {
+            activitySoundManager->setSwimmingState(false, false);
+            sfxStateInitialized = false;
         }
     }
 
@@ -1011,6 +1065,9 @@ bool Renderer::loadTestTerrain(pipeline::AssetManager* assetManager, const std::
         if (footstepManager) {
             footstepManager->initialize(assetManager);
         }
+        if (activitySoundManager) {
+            activitySoundManager->initialize(assetManager);
+        }
         cachedAssetManager = assetManager;
     }
 
@@ -1077,6 +1134,11 @@ bool Renderer::loadTerrainArea(const std::string& mapName, int centerX, int cent
     if (footstepManager && cachedAssetManager) {
         if (!footstepManager->isInitialized()) {
             footstepManager->initialize(cachedAssetManager);
+        }
+    }
+    if (activitySoundManager && cachedAssetManager) {
+        if (!activitySoundManager->isInitialized()) {
+            activitySoundManager->initialize(cachedAssetManager);
         }
     }
 

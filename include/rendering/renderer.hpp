@@ -8,7 +8,7 @@
 namespace wowee {
 namespace core { class Window; }
 namespace game { class World; class ZoneManager; }
-namespace audio { class MusicManager; class FootstepManager; enum class FootstepSurface : uint8_t; }
+namespace audio { class MusicManager; class FootstepManager; class ActivitySoundManager; enum class FootstepSurface : uint8_t; }
 namespace pipeline { class AssetManager; }
 
 namespace rendering {
@@ -151,6 +151,7 @@ private:
     std::unique_ptr<Minimap> minimap;
     std::unique_ptr<audio::MusicManager> musicManager;
     std::unique_ptr<audio::FootstepManager> footstepManager;
+    std::unique_ptr<audio::ActivitySoundManager> activitySoundManager;
     std::unique_ptr<game::ZoneManager> zoneManager;
 
     pipeline::AssetManager* cachedAssetManager = nullptr;
@@ -182,6 +183,11 @@ private:
     uint32_t footstepLastAnimationId = 0;
     float footstepLastNormTime = 0.0f;
     bool footstepNormInitialized = false;
+    bool sfxStateInitialized = false;
+    bool sfxPrevGrounded = true;
+    bool sfxPrevJumping = false;
+    bool sfxPrevFalling = false;
+    bool sfxPrevSwimming = false;
 
     bool terrainEnabled = true;
     bool terrainLoaded = false;

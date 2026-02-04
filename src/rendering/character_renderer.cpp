@@ -1185,6 +1185,19 @@ bool CharacterRenderer::hasAnimation(uint32_t instanceId, uint32_t animationId) 
     return false;
 }
 
+bool CharacterRenderer::getInstanceModelName(uint32_t instanceId, std::string& modelName) const {
+    auto it = instances.find(instanceId);
+    if (it == instances.end()) {
+        return false;
+    }
+    auto modelIt = models.find(it->second.modelId);
+    if (modelIt == models.end()) {
+        return false;
+    }
+    modelName = modelIt->second.data.name;
+    return !modelName.empty();
+}
+
 bool CharacterRenderer::attachWeapon(uint32_t charInstanceId, uint32_t attachmentId,
                                       const pipeline::M2Model& weaponModel, uint32_t weaponModelId,
                                       const std::string& texturePath) {
