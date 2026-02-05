@@ -15,9 +15,23 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <functional>
 
 namespace wowee {
 namespace game {
+
+void NpcManager::clear(rendering::CharacterRenderer* cr, EntityManager* em) {
+    for (const auto& npc : npcs) {
+        if (cr) {
+            cr->removeInstance(npc.renderInstanceId);
+        }
+        if (em) {
+            em->removeEntity(npc.guid);
+        }
+    }
+    npcs.clear();
+    loadedModels.clear();
+}
 
 // Random emote animation IDs (humanoid only)
 static const uint32_t EMOTE_ANIMS[] = { 60, 66, 67, 70 }; // Talk, Bow, Wave, Laugh
@@ -504,16 +518,39 @@ std::vector<NpcSpawnDef> NpcManager::loadSpawnDefsFromAzerothCoreDb(
         }
     }
 
+    auto processInsertStatements =
+        [](std::ifstream& in, const std::function<bool(const std::vector<std::string>&)>& onTuple) {
+            std::string line;
+            std::string stmt;
+            std::vector<std::string> tuples;
+            while (std::getline(in, line)) {
+                if (stmt.empty()) {
+                    // Skip non-INSERT lines early.
+                    if (line.find("INSERT INTO") == std::string::npos &&
+                        line.find("insert into") == std::string::npos) {
+                        continue;
+                    }
+                }
+                if (!stmt.empty()) stmt.push_back('\n');
+                stmt += line;
+                if (line.find(';') == std::string::npos) continue;
+
+                if (parseInsertTuples(stmt, tuples)) {
+                    for (const auto& t : tuples) {
+                        if (!onTuple(splitCsvTuple(t))) {
+                            return;
+                        }
+                    }
+                }
+                stmt.clear();
+            }
+        };
+
     // Parse creature_template.sql: entry, modelid1(displayId), name, minlevel.
     {
         std::ifstream in(tmplPath);
-        std::string line;
-        std::vector<std::string> tuples;
-        while (std::getline(in, line)) {
-            if (!parseInsertTuples(line, tuples)) continue;
-            for (const auto& t : tuples) {
-                auto cols = splitCsvTuple(t);
-                if (cols.size() < 16) continue;
+        processInsertStatements(in, [&](const std::vector<std::string>& cols) {
+                if (cols.size() < 16) return true;
                 try {
                     uint32_t entry = static_cast<uint32_t>(std::stoul(cols[0]));
                     uint32_t displayId = static_cast<uint32_t>(std::stoul(cols[6]));
@@ -531,25 +568,20 @@ std::vector<NpcSpawnDef> NpcManager::loadSpawnDefsFromAzerothCoreDb(
                     templates[entry] = std::move(tr);
                 } catch (const std::exception&) {
                 }
-            }
-        }
+                return true;
+            });
     }
 
     int targetMap = mapNameToId(mapName);
     constexpr float kRadius = 2200.0f;
     constexpr size_t kMaxSpawns = 220;
     std::ifstream in(creaturePath);
-    std::string line;
-    std::vector<std::string> tuples;
-    while (std::getline(in, line)) {
-        if (!parseInsertTuples(line, tuples)) continue;
-        for (const auto& t : tuples) {
-            auto cols = splitCsvTuple(t);
-            if (cols.size() < 16) continue;
+    processInsertStatements(in, [&](const std::vector<std::string>& cols) {
+            if (cols.size() < 16) return true;
             try {
                 uint32_t entry = static_cast<uint32_t>(std::stoul(cols[1]));
                 int mapId = static_cast<int>(std::stol(cols[2]));
-                if (mapId != targetMap) continue;
+                if (mapId != targetMap) return true;
 
                 float sx = std::stof(cols[7]);
                 float sy = std::stof(cols[8]);
@@ -560,7 +592,7 @@ std::vector<NpcSpawnDef> NpcManager::loadSpawnDefsFromAzerothCoreDb(
                 glm::vec3 canonical = core::coords::serverToCanonical(glm::vec3(sx, sy, sz));
                 float dx = canonical.x - playerCanonical.x;
                 float dy = canonical.y - playerCanonical.y;
-                if (dx * dx + dy * dy > kRadius * kRadius) continue;
+                if (dx * dx + dy * dy > kRadius * kRadius) return true;
 
                 NpcSpawnDef def;
                 def.mapName = mapName;
@@ -584,12 +616,11 @@ std::vector<NpcSpawnDef> NpcManager::loadSpawnDefsFromAzerothCoreDb(
                 def.scale = 1.0f;
                 def.isCritter = (def.level <= 1 || def.health <= 50);
                 out.push_back(std::move(def));
-                if (out.size() >= kMaxSpawns) break;
+                if (out.size() >= kMaxSpawns) return false;
             } catch (const std::exception&) {
             }
-        }
-        if (out.size() >= kMaxSpawns) break;
-    }
+            return true;
+        });
 
     LOG_INFO("NpcManager: loaded ", out.size(), " nearby creature spawns from AzerothCore DB at ", basePath);
     return out;

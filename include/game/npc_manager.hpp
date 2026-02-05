@@ -38,6 +38,7 @@ struct NpcInstance {
 
 class NpcManager {
 public:
+    void clear(rendering::CharacterRenderer* cr, EntityManager* em);
     void initialize(pipeline::AssetManager* am,
                     rendering::CharacterRenderer* cr,
                     EntityManager& em,

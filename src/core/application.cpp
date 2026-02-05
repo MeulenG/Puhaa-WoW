@@ -859,6 +859,9 @@ void Application::spawnNpcs() {
     if (!renderer || !renderer->getCharacterRenderer() || !renderer->getCamera()) return;
     if (!gameHandler) return;
 
+    if (npcManager) {
+        npcManager->clear(renderer->getCharacterRenderer(), &gameHandler->getEntityManager());
+    }
     npcManager = std::make_unique<game::NpcManager>();
     glm::vec3 playerSpawnGL = renderer->getCharacterPosition();
     glm::vec3 playerCanonical = core::coords::renderToCanonical(playerSpawnGL);
@@ -1136,6 +1139,15 @@ void Application::teleportTo(int presetIndex) {
         glm::vec3 finalRender = renderer->getCharacterPosition();
         glm::vec3 finalCanonical = core::coords::renderToCanonical(finalRender);
         gameHandler->setPosition(finalCanonical.x, finalCanonical.y, finalCanonical.z);
+    }
+
+    // Rebuild nearby NPC set for the new location.
+    if (singlePlayerMode && gameHandler && renderer && renderer->getCharacterRenderer()) {
+        if (npcManager) {
+            npcManager->clear(renderer->getCharacterRenderer(), &gameHandler->getEntityManager());
+        }
+        npcsSpawned = false;
+        spawnNpcs();
     }
 
     LOG_INFO("Teleport to ", preset.label, " complete");
