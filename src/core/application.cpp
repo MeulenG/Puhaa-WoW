@@ -342,13 +342,7 @@ void Application::update(float deltaTime) {
             if (world) {
                 world->update(deltaTime);
             }
-            // Spawn local NPCs only in single-player (no server to provide them)
-            if (!npcsSpawned && singlePlayerMode) {
-                spawnNpcs();
-            }
-            if (npcManager && renderer && renderer->getCharacterRenderer()) {
-                npcManager->update(deltaTime, renderer->getCharacterRenderer());
-            }
+            // Local test NPC spawning disabled.
 
             // Sync character render position → canonical WoW coords each frame
             if (renderer && gameHandler) {
