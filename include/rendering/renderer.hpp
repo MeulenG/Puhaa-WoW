@@ -180,6 +180,8 @@ private:
     uint32_t shadowDepthTex = 0;
     uint32_t shadowShaderProgram = 0;
     glm::mat4 lightSpaceMatrix = glm::mat4(1.0f);
+    glm::vec3 shadowCenter = glm::vec3(0.0f);
+    bool shadowCenterInitialized = false;
 
     void initShadowMap();
     void renderShadowPass();

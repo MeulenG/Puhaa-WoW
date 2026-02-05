@@ -1524,13 +1524,42 @@ uint32_t Renderer::compileShadowShader() {
         uniform mat4 uLightSpaceMatrix;
         uniform mat4 uModel;
         layout(location = 0) in vec3 aPos;
+        layout(location = 4) in vec2 aTexCoord;
+        out vec2 vTexCoord;
         void main() {
+            vTexCoord = aTexCoord;
             gl_Position = uLightSpaceMatrix * uModel * vec4(aPos, 1.0);
         }
     )";
     const char* fragSrc = R"(
         #version 330 core
-        void main() { }
+        in vec2 vTexCoord;
+        uniform bool uUseTexture;
+        uniform sampler2D uTexture;
+        uniform bool uAlphaTest;
+        uniform float uShadowOpacity;
+
+        float hash12(vec2 p) {
+            vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+            p3 += dot(p3, p3.yzx + 33.33);
+            return fract((p3.x + p3.y) * p3.z);
+        }
+
+        void main() {
+            float opacity = clamp(uShadowOpacity, 0.0, 1.0);
+            if (uUseTexture) {
+                vec4 tex = texture(uTexture, vTexCoord);
+                if (uAlphaTest && tex.a < 0.5) discard;
+                opacity *= tex.a;
+            }
+
+            // Stochastic alpha for soft/translucent shadow casters (foliage).
+            // Use UV-space hash so pattern stays stable with camera movement.
+            if (opacity < 0.999) {
+                float d = hash12(floor(vTexCoord * 4096.0));
+                if (d > opacity) discard;
+            }
+        }
     )";
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
@@ -1581,8 +1610,24 @@ glm::mat4 Renderer::computeLightSpaceMatrix() {
     // Sun direction matching WMO light dir
     glm::vec3 sunDir = glm::normalize(glm::vec3(-0.3f, -0.7f, -0.6f));
 
-    // Center on character position
-    glm::vec3 center = characterPosition;
+    // Keep a stable shadow focus center and only recentre occasionally.
+    glm::vec3 desiredCenter = characterPosition;
+    if (!shadowCenterInitialized) {
+        shadowCenter = desiredCenter;
+        shadowCenterInitialized = true;
+    } else {
+        constexpr float recenterThreshold = 30.0f; // world units
+        if (std::abs(desiredCenter.x - shadowCenter.x) > recenterThreshold ||
+            std::abs(desiredCenter.y - shadowCenter.y) > recenterThreshold) {
+            shadowCenter.x = desiredCenter.x;
+            shadowCenter.y = desiredCenter.y;
+        }
+        // Avoid vertical jitter from tiny terrain/camera height changes.
+        if (std::abs(desiredCenter.z - shadowCenter.z) > 4.0f) {
+            shadowCenter.z = desiredCenter.z;
+        }
+    }
+    glm::vec3 center = shadowCenter;
 
     // Texel snapping: round center to shadow texel boundaries to prevent shimmer
     float halfExtent = 120.0f;
@@ -1598,10 +1643,11 @@ glm::mat4 Renderer::computeLightSpaceMatrix() {
 
     // Snap center in light space to texel grid
     glm::vec4 centerLS = lightView * glm::vec4(center, 1.0f);
-    centerLS.x = std::floor(centerLS.x / texelWorld) * texelWorld;
-    centerLS.y = std::floor(centerLS.y / texelWorld) * texelWorld;
+    centerLS.x = std::round(centerLS.x / texelWorld) * texelWorld;
+    centerLS.y = std::round(centerLS.y / texelWorld) * texelWorld;
     glm::vec4 snappedCenter = glm::inverse(lightView) * centerLS;
     center = glm::vec3(snappedCenter);
+    shadowCenter = center;
 
     // Rebuild with snapped center
     lightView = glm::lookAt(center - sunDir * 200.0f, center, up);
@@ -1629,6 +1675,14 @@ void Renderer::renderShadowPass() {
     glUseProgram(shadowShaderProgram);
     GLint lsmLoc = glGetUniformLocation(shadowShaderProgram, "uLightSpaceMatrix");
     glUniformMatrix4fv(lsmLoc, 1, GL_FALSE, &lightSpaceMatrix[0][0]);
+    GLint useTexLoc = glGetUniformLocation(shadowShaderProgram, "uUseTexture");
+    GLint texLoc = glGetUniformLocation(shadowShaderProgram, "uTexture");
+    GLint alphaTestLoc = glGetUniformLocation(shadowShaderProgram, "uAlphaTest");
+    GLint opacityLoc = glGetUniformLocation(shadowShaderProgram, "uShadowOpacity");
+    if (useTexLoc >= 0) glUniform1i(useTexLoc, 0);
+    if (alphaTestLoc >= 0) glUniform1i(alphaTestLoc, 0);
+    if (opacityLoc >= 0) glUniform1f(opacityLoc, 1.0f);
+    if (texLoc >= 0) glUniform1i(texLoc, 0);
 
     // Render terrain into shadow map
     if (terrainRenderer) {
@@ -1643,18 +1697,11 @@ void Renderer::renderShadowPass() {
         // directly by calling renderShadow with the light view/proj split.
         // For simplicity, compute the split:
         glm::vec3 sunDir = glm::normalize(glm::vec3(-0.3f, -0.7f, -0.6f));
-        glm::vec3 center = characterPosition;
+        glm::vec3 center = shadowCenterInitialized ? shadowCenter : characterPosition;
         float halfExtent = 120.0f;
-        float texelWorld = (2.0f * halfExtent) / static_cast<float>(SHADOW_MAP_SIZE);
         glm::vec3 up(0.0f, 0.0f, 1.0f);
         if (std::abs(glm::dot(sunDir, up)) > 0.99f) up = glm::vec3(0.0f, 1.0f, 0.0f);
         glm::mat4 lightView = glm::lookAt(center - sunDir * 200.0f, center, up);
-        glm::vec4 centerLS = lightView * glm::vec4(center, 1.0f);
-        centerLS.x = std::floor(centerLS.x / texelWorld) * texelWorld;
-        centerLS.y = std::floor(centerLS.y / texelWorld) * texelWorld;
-        glm::vec4 snappedCenter = glm::inverse(lightView) * centerLS;
-        center = glm::vec3(snappedCenter);
-        lightView = glm::lookAt(center - sunDir * 200.0f, center, up);
         glm::mat4 lightProj = glm::ortho(-halfExtent, halfExtent, -halfExtent, halfExtent, 1.0f, 400.0f);
 
         // WMO renderShadow needs a Shader reference — but it only uses setUniform("uModel", ...)
@@ -1666,6 +1713,11 @@ void Renderer::renderShadowPass() {
         shadowShaderWrapper.setProgram(shadowShaderProgram);
         wmoRenderer->renderShadow(lightView, lightProj, shadowShaderWrapper);
         shadowShaderWrapper.releaseProgram();  // Don't let wrapper delete our program
+    }
+
+    // Render M2 doodads into shadow map
+    if (m2Renderer) {
+        m2Renderer->renderShadow(shadowShaderProgram);
     }
 
     // Restore state

@@ -101,6 +101,7 @@ bool CharacterRenderer::initialize() {
         uniform sampler2DShadow uShadowMap;
         uniform mat4 uLightSpaceMatrix;
         uniform int uShadowEnabled;
+        uniform float uShadowStrength;
 
         out vec4 FragColor;
 
@@ -134,6 +135,7 @@ bool CharacterRenderer::initialize() {
                     shadow /= 9.0;
                 }
             }
+            shadow = mix(1.0, shadow, clamp(uShadowStrength, 0.0, 1.0));
 
             // Ambient
             vec3 ambient = vec3(0.3);
@@ -1029,6 +1031,7 @@ void CharacterRenderer::render(const Camera& camera, const glm::mat4& view, cons
 
     // Shadows
     characterShader->setUniform("uShadowEnabled", shadowEnabled ? 1 : 0);
+    characterShader->setUniform("uShadowStrength", 0.65f);
     if (shadowEnabled) {
         characterShader->setUniform("uLightSpaceMatrix", lightSpaceMatrix);
         glActiveTexture(GL_TEXTURE7);

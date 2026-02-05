@@ -269,6 +269,7 @@ bool M2Renderer::initialize(pipeline::AssetManager* assets) {
         uniform sampler2DShadow uShadowMap;
         uniform mat4 uLightSpaceMatrix;
         uniform bool uShadowEnabled;
+        uniform float uShadowStrength;
 
         out vec4 FragColor;
 
@@ -320,6 +321,7 @@ bool M2Renderer::initialize(pipeline::AssetManager* assets) {
                     shadow /= 9.0;
                 }
             }
+            shadow = mix(1.0, shadow, clamp(uShadowStrength, 0.0, 1.0));
 
             vec3 ambient = uAmbientColor * texColor.rgb;
             vec3 diffuse = diff * texColor.rgb;
@@ -1127,6 +1129,7 @@ void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::
     shader->setUniform("uFogStart", fogStart);
     shader->setUniform("uFogEnd", fogEnd);
     shader->setUniform("uShadowEnabled", shadowEnabled ? 1 : 0);
+    shader->setUniform("uShadowStrength", 0.65f);
     if (shadowEnabled) {
         shader->setUniform("uLightSpaceMatrix", lightSpaceMatrix);
         glActiveTexture(GL_TEXTURE7);
@@ -1229,6 +1232,58 @@ void M2Renderer::render(const Camera& camera, const glm::mat4& view, const glm::
     // Restore state
     glDisable(GL_BLEND);
     glEnable(GL_CULL_FACE);
+}
+
+void M2Renderer::renderShadow(GLuint shadowShaderProgram) {
+    if (instances.empty() || shadowShaderProgram == 0) {
+        return;
+    }
+
+    GLint modelLoc = glGetUniformLocation(shadowShaderProgram, "uModel");
+    GLint useTexLoc = glGetUniformLocation(shadowShaderProgram, "uUseTexture");
+    GLint texLoc = glGetUniformLocation(shadowShaderProgram, "uTexture");
+    GLint alphaTestLoc = glGetUniformLocation(shadowShaderProgram, "uAlphaTest");
+    GLint opacityLoc = glGetUniformLocation(shadowShaderProgram, "uShadowOpacity");
+    if (modelLoc < 0) {
+        return;
+    }
+
+    if (useTexLoc >= 0) glUniform1i(useTexLoc, 0);
+    if (alphaTestLoc >= 0) glUniform1i(alphaTestLoc, 0);
+    if (opacityLoc >= 0) glUniform1f(opacityLoc, 1.0f);
+    if (texLoc >= 0) glUniform1i(texLoc, 0);
+    glActiveTexture(GL_TEXTURE0);
+
+    for (const auto& instance : instances) {
+        auto it = models.find(instance.modelId);
+        if (it == models.end()) continue;
+
+        const M2ModelGPU& model = it->second;
+        if (!model.isValid() || model.isSmoke) continue;
+
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &instance.modelMatrix[0][0]);
+        glBindVertexArray(model.vao);
+
+        for (const auto& batch : model.batches) {
+            if (batch.indexCount == 0) continue;
+            bool useTexture = (batch.texture != 0);
+            bool alphaCutout = batch.hasAlpha;
+
+            // Foliage/leaf cutout batches cast softer shadows than opaque trunk geometry.
+            float shadowOpacity = alphaCutout ? 0.55f : 1.0f;
+
+            if (useTexLoc >= 0) glUniform1i(useTexLoc, useTexture ? 1 : 0);
+            if (alphaTestLoc >= 0) glUniform1i(alphaTestLoc, alphaCutout ? 1 : 0);
+            if (opacityLoc >= 0) glUniform1f(opacityLoc, shadowOpacity);
+            if (useTexture) {
+                glBindTexture(GL_TEXTURE_2D, batch.texture);
+            }
+            glDrawElements(GL_TRIANGLES, batch.indexCount, GL_UNSIGNED_SHORT,
+                           (void*)(batch.indexStart * sizeof(uint16_t)));
+        }
+    }
+
+    glBindVertexArray(0);
 }
 
 void M2Renderer::renderSmokeParticles(const Camera& /*camera*/, const glm::mat4& view, const glm::mat4& projection) {

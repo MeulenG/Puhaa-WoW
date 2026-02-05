@@ -41,6 +41,7 @@ uniform float uFogEnd;
 uniform sampler2DShadow uShadowMap;
 uniform mat4 uLightSpaceMatrix;
 uniform bool uShadowEnabled;
+uniform float uShadowStrength;
 
 float calcShadow() {
     vec4 lsPos = uLightSpaceMatrix * vec4(FragPos, 1.0);
@@ -99,6 +100,7 @@ void main() {
 
     // Shadow
     float shadow = uShadowEnabled ? calcShadow() : 1.0;
+    shadow = mix(1.0, shadow, clamp(uShadowStrength, 0.0, 1.0));
 
     // Combine lighting (terrain is purely diffuse — no specular on ground)
     vec3 result = ambient + shadow * diffuse;

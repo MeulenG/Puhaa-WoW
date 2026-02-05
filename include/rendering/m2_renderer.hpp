@@ -159,6 +159,11 @@ public:
     void render(const Camera& camera, const glm::mat4& view, const glm::mat4& projection);
 
     /**
+     * Render depth-only pass for shadow casting
+     */
+    void renderShadow(GLuint shadowShaderProgram);
+
+    /**
      * Render smoke particles (call after render())
      */
     void renderSmokeParticles(const Camera& camera, const glm::mat4& view, const glm::mat4& projection);

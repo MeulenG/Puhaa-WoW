@@ -89,6 +89,7 @@ bool WMORenderer::initialize(pipeline::AssetManager* assets) {
         uniform sampler2DShadow uShadowMap;
         uniform mat4 uLightSpaceMatrix;
         uniform bool uShadowEnabled;
+        uniform float uShadowStrength;
 
         out vec4 FragColor;
 
@@ -137,6 +138,7 @@ bool WMORenderer::initialize(pipeline::AssetManager* assets) {
                     shadow /= 9.0;
                 }
             }
+            shadow = mix(1.0, shadow, clamp(uShadowStrength, 0.0, 1.0));
 
             // Combine lighting with texture
             vec3 result = (ambient + (diffuse + specular) * shadow) * texColor.rgb;
@@ -499,6 +501,7 @@ void WMORenderer::render(const Camera& camera, const glm::mat4& view, const glm:
     shader->setUniform("uFogStart", fogStart);
     shader->setUniform("uFogEnd", fogEnd);
     shader->setUniform("uShadowEnabled", shadowEnabled ? 1 : 0);
+    shader->setUniform("uShadowStrength", 0.65f);
     if (shadowEnabled) {
         shader->setUniform("uLightSpaceMatrix", lightSpaceMatrix);
         glActiveTexture(GL_TEXTURE7);
