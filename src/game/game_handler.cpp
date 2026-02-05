@@ -572,6 +572,7 @@ void GameHandler::handleLoginVerifyWorld(network::Packet& packet) {
     LOG_INFO("Position: (", data.x, ", ", data.y, ", ", data.z, ")");
     LOG_INFO("Orientation: ", data.orientation, " radians");
     LOG_INFO("Player is now in the game world");
+    addSystemChatMessage("You have entered the world.");
 
     // Initialize movement info with world entry position (server → canonical)
     glm::vec3 canonical = core::coords::serverToCanonical(glm::vec3(data.x, data.y, data.z));
@@ -618,6 +619,7 @@ void GameHandler::handleMotd(network::Packet& packet) {
         LOG_INFO("========================================");
         for (const auto& line : data.lines) {
             LOG_INFO(line);
+            addSystemChatMessage(std::string("MOTD: ") + line);
         }
         LOG_INFO("========================================");
     }
@@ -1497,6 +1499,9 @@ void GameHandler::handleGroupInvite(network::Packet& packet) {
     pendingGroupInvite = true;
     pendingInviterName = data.inviterName;
     LOG_INFO("Group invite from: ", data.inviterName);
+    if (!data.inviterName.empty()) {
+        addSystemChatMessage(data.inviterName + " has invited you to a group.");
+    }
 }
 
 void GameHandler::handleGroupDecline(network::Packet& packet) {
@@ -1515,8 +1520,10 @@ void GameHandler::handleGroupList(network::Packet& packet) {
 
     if (partyData.isEmpty()) {
         LOG_INFO("No longer in a group");
+        addSystemChatMessage("You are no longer in a group.");
     } else {
         LOG_INFO("In group with ", partyData.memberCount, " members");
+        addSystemChatMessage("You are now in a group with " + std::to_string(partyData.memberCount) + " members.");
     }
 }
 
@@ -1610,6 +1617,13 @@ void GameHandler::sellItem(uint64_t vendorGuid, uint64_t itemGuid, uint8_t count
 void GameHandler::handleLootResponse(network::Packet& packet) {
     if (!LootResponseParser::parse(packet, currentLoot)) return;
     lootWindowOpen = true;
+    if (currentLoot.gold > 0) {
+        std::string msg = "You loot ";
+        msg += std::to_string(currentLoot.getGold()) + "g ";
+        msg += std::to_string(currentLoot.getSilver()) + "s ";
+        msg += std::to_string(currentLoot.getCopper()) + "c.";
+        addSystemChatMessage(msg);
+    }
 }
 
 void GameHandler::handleLootReleaseResponse(network::Packet& packet) {
@@ -1923,6 +1937,21 @@ void GameHandler::handleXpGain(network::Packet& packet) {
     // Server already updates PLAYER_XP via update fields,
     // but we can show combat text for XP gains
     addCombatText(CombatTextEntry::HEAL, static_cast<int32_t>(data.totalXp), 0, true);
+
+    std::string msg = "You gain " + std::to_string(data.totalXp) + " experience.";
+    if (data.groupBonus > 0) {
+        msg += " (+" + std::to_string(data.groupBonus) + " group bonus)";
+    }
+    addSystemChatMessage(msg);
+}
+
+void GameHandler::addSystemChatMessage(const std::string& message) {
+    if (message.empty()) return;
+    MessageChatData msg;
+    msg.type = ChatType::SYSTEM;
+    msg.language = ChatLanguage::UNIVERSAL;
+    msg.message = message;
+    addLocalChatMessage(msg);
 }
 
 uint32_t GameHandler::generateClientSeed() {

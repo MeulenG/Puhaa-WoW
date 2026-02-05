@@ -380,6 +380,7 @@ private:
     void handleListInventory(network::Packet& packet);
 
     void addCombatText(CombatTextEntry::Type type, int32_t amount, uint32_t spellId, bool isPlayerSource);
+    void addSystemChatMessage(const std::string& message);
 
     /**
      * Send CMSG_PING to server (heartbeat)
