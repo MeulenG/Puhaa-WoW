@@ -1,16 +1,6 @@
-# WoWee - World Of Warcraft Engine Experiment
-
-<p align="center">
-  <img src="assets/Wowee.png" alt="Wowee Logo" width="240" />
-</p>
+# Puhaa-WoW
 
 A native C++ World of Warcraft client with a custom OpenGL renderer.
-
-[![Sponsor](https://img.shields.io/github/sponsors/Kelsidavis?label=Sponsor&logo=GitHub)](https://github.com/sponsors/Kelsidavis)
-
-[![Watch the video](https://img.youtube.com/vi/Pd9JuYYxu0o/maxresdefault.jpg)](https://youtu.be/Pd9JuYYxu0o)
-
-[![Watch the video](https://img.youtube.com/vi/J4NXegzqWSQ/maxresdefault.jpg)](https://youtu.be/J4NXegzqWSQ)
 
 Primary target today is **WotLK 3.3.5a**, with active work to broaden compatibility across **Vanilla (Classic) + TBC + WotLK**.
 
@@ -92,7 +82,7 @@ sudo pacman -S sdl2 glew glm openssl cmake base-devel \
 
 This project requires WoW client data that you extract from your own legally obtained install.
 
-Wowee loads assets via an extracted loose-file tree indexed by `manifest.json` (it does not read MPQs at runtime).
+Puhaa-WoW loads assets via an extracted loose-file tree indexed by `manifest.json` (it does not read MPQs at runtime).
 
 #### 1) Extract MPQs into `./Data/`
 
@@ -115,9 +105,9 @@ Notes:
 - `StormLib` is required to build/run the extractor (`asset_extract`), but the main client does not require StormLib at runtime.
 - `extract_assets.sh` supports `classic`, `turtle`, `tbc`, `wotlk` targets.
 
-#### 2) Point wowee at the extracted data
+#### 2) Point Puhaa-WoW at the extracted data
 
-By default, wowee looks for `./Data/`. You can override with:
+By default, Puhaa-WoW looks for `./Data/`. You can override with:
 
 ```bash
 export WOW_DATA_PATH=/path/to/extracted/Data
@@ -126,8 +116,8 @@ export WOW_DATA_PATH=/path/to/extracted/Data
 ### Compile & Run
 
 ```bash
-git clone https://github.com/Kelsidavis/WoWee.git
-cd wowee
+git clone https://github.com/MeulenG/Puhaa-WoW.git
+cd Puhaa-WoW
 
 # Get ImGui (required)
 git clone https://github.com/ocornut/imgui.git extern/imgui
