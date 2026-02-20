@@ -1,0 +1,4 @@
+[submodule "unicorn"]
+	path = dependencies/unicorn
+	url = git@github.com:unicorn-engine/unicorn.git
+	branch = 2.1.4
