@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <memory>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 /**
@@ -139,4 +139,4 @@ private:
 };
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 static const UpdateFieldTable* g_activeUpdateFieldTable = nullptr;
@@ -175,4 +175,4 @@ bool UpdateFieldTable::hasField(UF field) const {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

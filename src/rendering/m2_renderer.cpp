@@ -19,7 +19,7 @@
 #include <future>
 #include <thread>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 namespace {
@@ -3330,4 +3330,4 @@ float M2Renderer::raycastBoundingBoxes(const glm::vec3& origin, const glm::vec3&
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

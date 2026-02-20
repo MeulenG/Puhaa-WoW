@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <glm/vec3.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 class AssetManager;
 }
@@ -211,4 +211,4 @@ private:
 };
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

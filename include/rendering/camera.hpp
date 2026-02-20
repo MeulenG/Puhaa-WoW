@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 struct Ray {
@@ -49,4 +49,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

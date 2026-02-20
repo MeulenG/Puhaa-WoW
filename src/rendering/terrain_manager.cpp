@@ -21,7 +21,7 @@
 #include <functional>
 #include <unordered_set>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 namespace {
@@ -1449,4 +1449,4 @@ void TerrainManager::precacheTiles(const std::vector<std::pair<int, int>>& tiles
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

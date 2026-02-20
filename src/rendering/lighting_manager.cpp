@@ -7,7 +7,7 @@
 #include <cmath>
 #include <ctime>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 // Light coordinate scaling (test with 1.0f first, then try 36.0f if distances seem off)
@@ -560,4 +560,4 @@ glm::vec3 LightingManager::dbcColorToVec3(uint32_t dbcColor) const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

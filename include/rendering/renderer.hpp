@@ -6,7 +6,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace core { class Window; }
 namespace game { class World; class ZoneManager; class GameHandler; }
 namespace audio { class MusicManager; class FootstepManager; class ActivitySoundManager; class MountSoundManager; class NpcVoiceManager; class AmbientSoundManager; class UiSoundManager; class CombatSoundManager; class SpellSoundManager; class MovementSoundManager; enum class FootstepSurface : uint8_t; enum class VoiceType; }
@@ -355,4 +355,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 namespace {
@@ -167,4 +167,4 @@ const char* FootstepManager::surfaceName(FootstepSurface surface) {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

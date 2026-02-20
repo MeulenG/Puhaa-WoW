@@ -2,7 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Camera::Camera() {
@@ -53,4 +53,4 @@ Ray Camera::screenToWorldRay(float screenX, float screenY, float screenW, float 
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -6,7 +6,7 @@
 #include <functional>
 #include <optional>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class TerrainManager;
@@ -301,4 +301,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

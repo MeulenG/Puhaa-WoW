@@ -20,7 +20,7 @@
 #include <random>
 #include <unordered_map>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 static std::string trimAscii(std::string s) {
     auto isSpace = [](unsigned char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
@@ -577,10 +577,10 @@ std::string AuthScreen::getConfigPath() {
     std::string dir;
 #ifdef _WIN32
     const char* appdata = std::getenv("APPDATA");
-    dir = appdata ? std::string(appdata) + "\\wowee" : ".";
+    dir = appdata ? std::string(appdata) + "\\puhaa-wow" : ".";
 #else
     const char* home = std::getenv("HOME");
-    dir = home ? std::string(home) + "/.wowee" : ".";
+    dir = home ? std::string(home) + "/.puhaa-wow" : ".";
 #endif
     return dir + "/login.cfg";
 }
@@ -750,4 +750,4 @@ void AuthScreen::loadLoginInfo() {
     LOG_INFO("Login info loaded from ", path);
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

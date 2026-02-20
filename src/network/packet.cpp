@@ -1,7 +1,7 @@
 #include "network/packet.hpp"
 #include <cstring>
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 Packet::Packet(uint16_t opcode) : opcode(opcode) {}
@@ -93,4 +93,4 @@ std::string Packet::readString() {
 }
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

@@ -6,7 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Celestial::Celestial() = default;
@@ -518,4 +518,4 @@ void Celestial::updatePhasesFromGameTime(float gameTime) {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

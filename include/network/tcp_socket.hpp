@@ -3,7 +3,7 @@
 #include "network/socket.hpp"
 #include "network/net_platform.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 class TCPSocket : public Socket {
@@ -28,4 +28,4 @@ private:
 };
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

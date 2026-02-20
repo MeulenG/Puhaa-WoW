@@ -10,7 +10,7 @@
 #include <sstream>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Minimap::Minimap() = default;
@@ -525,4 +525,4 @@ void Minimap::renderQuad(const Camera& playerCamera, const glm::vec3& centerWorl
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

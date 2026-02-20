@@ -9,7 +9,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 /**
@@ -104,4 +104,4 @@ private:
 };
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

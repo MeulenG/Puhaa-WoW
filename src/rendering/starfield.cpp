@@ -7,7 +7,7 @@
 #include <cmath>
 #include <random>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 StarField::StarField() = default;
@@ -261,4 +261,4 @@ float StarField::getStarIntensity(float timeOfDay) const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

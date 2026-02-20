@@ -41,7 +41,7 @@ inline bool isLoginPipelineCmsg(uint16_t opcode) {
 }
 } // namespace
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 // WoW 3.3.5a RC4 encryption keys (hardcoded in client)
@@ -457,4 +457,4 @@ void WorldSocket::initEncryption(const std::vector<uint8_t>& sessionKey, uint32_
 }
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

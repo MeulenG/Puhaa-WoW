@@ -6,7 +6,7 @@
 // Unicorn Engine headers
 #include <unicorn/unicorn.h>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // Memory layout for emulated environment
@@ -397,4 +397,4 @@ void WardenEmulator::hookMemInvalid(uc_engine* uc, int type, uint64_t address, i
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

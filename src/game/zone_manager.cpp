@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <unordered_set>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // Resolve "assets/Original Music/<name>" to an absolute path, or return empty
@@ -480,4 +480,4 @@ std::vector<std::string> ZoneManager::getAllMusicPaths() const {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

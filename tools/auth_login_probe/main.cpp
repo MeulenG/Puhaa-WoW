@@ -18,7 +18,7 @@
 #include <thread>
 #include <vector>
 
-using namespace wowee;
+using namespace pwow;
 
 static void usage() {
     std::cerr

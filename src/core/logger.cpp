@@ -4,7 +4,7 @@
 #include <ctime>
 #include <filesystem>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 Logger& Logger::getInstance() {
@@ -17,7 +17,7 @@ void Logger::ensureFile() {
     fileReady = true;
     std::error_code ec;
     std::filesystem::create_directories("logs", ec);
-    fileStream.open("logs/wowee.log", std::ios::out | std::ios::trunc);
+    fileStream.open("logs/puhaa-wow.log", std::ios::out | std::ios::trunc);
 }
 
 void Logger::log(LogLevel level, const std::string& message) {
@@ -65,4 +65,4 @@ void Logger::setLogLevel(LogLevel level) {
 }
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

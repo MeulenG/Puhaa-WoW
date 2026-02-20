@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <chrono>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 bool AssetManifest::load(const std::string& manifestPath) {
@@ -94,4 +94,4 @@ bool AssetManifest::hasEntry(const std::string& normalizedWowPath) const {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

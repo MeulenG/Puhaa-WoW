@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace tools {
 
 /**
@@ -29,4 +29,4 @@ private:
 };
 
 } // namespace tools
-} // namespace wowee
+} // namespace pwow

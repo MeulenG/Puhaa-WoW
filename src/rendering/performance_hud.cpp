@@ -18,7 +18,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 PerformanceHUD::PerformanceHUD() {
@@ -444,4 +444,4 @@ void PerformanceHUD::render(const Renderer* renderer, const Camera* camera) {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

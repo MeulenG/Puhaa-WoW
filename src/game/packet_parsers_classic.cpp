@@ -1,7 +1,7 @@
 #include "game/packet_parsers.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // ============================================================================
@@ -1219,4 +1219,4 @@ bool ClassicPacketParsers::parseQuestDetails(network::Packet& packet, QuestDetai
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

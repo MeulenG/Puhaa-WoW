@@ -20,7 +20,7 @@
 #include <thread>
 #include <unordered_set>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 static void transformAABB(const glm::mat4& modelMatrix,
@@ -2795,4 +2795,4 @@ bool WMORenderer::isGroupOccluded(uint32_t instanceId, uint32_t groupIndex) cons
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

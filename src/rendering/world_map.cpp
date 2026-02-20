@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 namespace {
@@ -1247,4 +1247,4 @@ void WorldMap::renderImGuiOverlay(const glm::vec3& playerRenderPos, int screenWi
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

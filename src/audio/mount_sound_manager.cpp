@@ -4,7 +4,7 @@
 #include "core/logger.hpp"
 #include <random>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 MountSoundManager::MountSoundManager() {
@@ -672,4 +672,4 @@ void MountSoundManager::stopAllMountSounds() {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

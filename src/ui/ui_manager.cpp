@@ -8,7 +8,7 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_opengl3.h>
 
-namespace wowee {
+namespace pwow {
 namespace ui {
 
 UIManager::UIManager() {
@@ -153,4 +153,4 @@ void UIManager::processEvent(const SDL_Event& event) {
 }
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

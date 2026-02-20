@@ -6,7 +6,7 @@
 #include <mutex>
 #include <fstream>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 enum class LogLevel {
@@ -70,11 +70,11 @@ private:
 };
 
 // Convenience macros
-#define LOG_DEBUG(...) wowee::core::Logger::getInstance().debug(__VA_ARGS__)
-#define LOG_INFO(...) wowee::core::Logger::getInstance().info(__VA_ARGS__)
-#define LOG_WARNING(...) wowee::core::Logger::getInstance().warning(__VA_ARGS__)
-#define LOG_ERROR(...) wowee::core::Logger::getInstance().error(__VA_ARGS__)
-#define LOG_FATAL(...) wowee::core::Logger::getInstance().fatal(__VA_ARGS__)
+#define LOG_DEBUG(...) pwow::core::Logger::getInstance().debug(__VA_ARGS__)
+#define LOG_INFO(...) pwow::core::Logger::getInstance().info(__VA_ARGS__)
+#define LOG_WARNING(...) pwow::core::Logger::getInstance().warning(__VA_ARGS__)
+#define LOG_ERROR(...) pwow::core::Logger::getInstance().error(__VA_ARGS__)
+#define LOG_FATAL(...) pwow::core::Logger::getInstance().fatal(__VA_ARGS__)
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

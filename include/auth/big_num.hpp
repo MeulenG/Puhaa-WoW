@@ -5,7 +5,7 @@
 #include <string>
 #include <openssl/bn.h>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 // Wrapper around OpenSSL BIGNUM for big integer arithmetic
@@ -52,4 +52,4 @@ private:
 };
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

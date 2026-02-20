@@ -32,7 +32,7 @@
 
 #include <cstring>
 
-namespace wowee {
+namespace pwow {
 namespace net {
 
 // ---- Winsock lifecycle (no-op on Linux) ----
@@ -119,4 +119,4 @@ inline ssize_t portableRecv(socket_t s, uint8_t* buf, size_t len) {
 }
 
 } // namespace net
-} // namespace wowee
+} // namespace pwow

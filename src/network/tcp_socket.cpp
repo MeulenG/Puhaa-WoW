@@ -3,7 +3,7 @@
 #include "network/net_platform.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 TCPSocket::TCPSocket() {
@@ -282,4 +282,4 @@ size_t TCPSocket::getExpectedPacketSize(uint8_t opcode) {
 }
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

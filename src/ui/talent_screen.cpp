@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <GL/glew.h>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 void TalentScreen::render(game::GameHandler& gameHandler) {
     // N key toggle (edge-triggered)
@@ -534,4 +534,4 @@ GLuint TalentScreen::getSpellIcon(uint32_t iconId, pipeline::AssetManager* asset
     return texId;
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

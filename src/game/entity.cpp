@@ -1,7 +1,7 @@
 #include "game/entity.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 void EntityManager::addEntity(uint64_t guid, std::shared_ptr<Entity> entity) {
@@ -34,4 +34,4 @@ bool EntityManager::hasEntity(uint64_t guid) const {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace tools {
 
 /**
@@ -37,4 +37,4 @@ public:
 };
 
 } // namespace tools
-} // namespace wowee
+} // namespace pwow

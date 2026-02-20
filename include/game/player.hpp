@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 class Player {
@@ -15,4 +15,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

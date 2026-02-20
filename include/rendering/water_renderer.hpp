@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
     struct ADTTerrain;
     struct LiquidData;
@@ -155,4 +155,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

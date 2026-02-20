@@ -2,7 +2,7 @@
 #include "core/logger.hpp"
 
 // Stub implementation - would use stb_image or similar
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Texture::~Texture() {
@@ -66,4 +66,4 @@ void applyAnisotropicFiltering() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

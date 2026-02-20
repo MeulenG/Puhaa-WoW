@@ -2,7 +2,7 @@
 
 #include "game/opcode_table.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // Backwards-compatibility alias: existing code uses Opcode::X which now maps
@@ -11,4 +11,4 @@ namespace game {
 using Opcode = LogicalOpcode;
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

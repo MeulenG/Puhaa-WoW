@@ -4,7 +4,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 // HeightMap implementation
@@ -683,4 +683,4 @@ void ADTLoader::parseMH2O(const uint8_t* data, size_t size, ADTTerrain& terrain)
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

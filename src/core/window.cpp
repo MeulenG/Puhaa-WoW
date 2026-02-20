@@ -2,7 +2,7 @@
 #include "core/logger.hpp"
 #include <GL/glew.h>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 Window::Window(const WindowConfig& config)
@@ -188,4 +188,4 @@ void Window::applyResolution(int w, int h) {
 }
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

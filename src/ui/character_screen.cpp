@@ -10,7 +10,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 CharacterScreen::CharacterScreen() {
 }
@@ -491,10 +491,10 @@ ImVec4 CharacterScreen::getFactionColor(game::Race race) const {
 std::string CharacterScreen::getConfigDir() {
 #ifdef _WIN32
     const char* appdata = std::getenv("APPDATA");
-    return appdata ? std::string(appdata) + "\\wowee" : ".";
+    return appdata ? std::string(appdata) + "\\puhaa-wow" : ".";
 #else
     const char* home = std::getenv("HOME");
-    return home ? std::string(home) + "/.wowee" : ".";
+    return home ? std::string(home) + "/.puhaa-wow" : ".";
 #endif
 }
 
@@ -513,4 +513,4 @@ uint64_t CharacterScreen::loadLastCharacter() {
     return guid;
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

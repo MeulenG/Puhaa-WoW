@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <optional>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -481,4 +481,4 @@ inline uint16_t wireOpcode(LogicalOpcode op) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

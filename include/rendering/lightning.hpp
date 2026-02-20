@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 // Forward declarations
@@ -102,4 +102,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

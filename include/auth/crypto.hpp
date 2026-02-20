@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 class Crypto {
@@ -30,4 +30,4 @@ public:
 };
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

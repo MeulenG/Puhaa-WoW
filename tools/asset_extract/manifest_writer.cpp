@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <zlib.h>
 
-namespace wowee {
+namespace pwow {
 namespace tools {
 
 uint32_t ManifestWriter::computeCRC32(const uint8_t* data, size_t size) {
@@ -64,4 +64,4 @@ bool ManifestWriter::write(const std::string& outputPath,
 }
 
 } // namespace tools
-} // namespace wowee
+} // namespace pwow

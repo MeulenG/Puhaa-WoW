@@ -7,7 +7,7 @@
 #include <cmath>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Skybox::Skybox() = default;
@@ -331,4 +331,4 @@ glm::vec3 Skybox::getSkyColor(float altitude, float time) const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

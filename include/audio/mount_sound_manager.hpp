@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <chrono>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 
 namespace audio {
@@ -112,4 +112,4 @@ private:
 };
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

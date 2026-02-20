@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class Mesh;
@@ -24,4 +24,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -10,7 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <unordered_set>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 CharacterPreview::CharacterPreview() = default;
@@ -560,4 +560,4 @@ void CharacterPreview::rotate(float yawDelta) {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

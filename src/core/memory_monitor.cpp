@@ -5,7 +5,7 @@
 #include <sstream>
 #include <sys/sysinfo.h>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 namespace {
@@ -76,4 +76,4 @@ bool MemoryMonitor::isMemoryPressure() const {
 }
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

@@ -54,7 +54,7 @@
 #include <set>
 #include <filesystem>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 
@@ -86,14 +86,14 @@ Application::~Application() {
 }
 
 bool Application::initialize() {
-    LOG_INFO("Initializing Wowee Native Client");
+    LOG_INFO("Initializing Puhaa-WoW Client");
 
     // Initialize memory monitoring for dynamic cache sizing
     core::MemoryMonitor::getInstance().initialize();
 
     // Create window
     WindowConfig windowConfig;
-    windowConfig.title = "Wowee";
+    windowConfig.title = "Puhaa-WoW";
     windowConfig.width = 1280;
     windowConfig.height = 720;
     windowConfig.vsync = false;
@@ -5228,4 +5228,4 @@ void Application::setupTestTransport() {
 }
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

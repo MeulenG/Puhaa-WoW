@@ -60,7 +60,7 @@
 #include <unordered_set>
 #include <set>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 struct EmoteInfo {
@@ -3506,4 +3506,4 @@ void Renderer::renderShadowPass() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

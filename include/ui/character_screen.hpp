@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace rendering { class CharacterPreview; }
 namespace ui {
@@ -131,4 +131,4 @@ private:
 };
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

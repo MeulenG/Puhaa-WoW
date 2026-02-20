@@ -3,7 +3,7 @@
 #include <string>
 #include <GL/glew.h>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class Texture {
@@ -35,4 +35,4 @@ private:
 void applyAnisotropicFiltering();
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

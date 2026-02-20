@@ -4,7 +4,7 @@
 #include "core/logger.hpp"
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 NpcVoiceManager::NpcVoiceManager() : rng_(std::random_device{}()) {}
@@ -381,4 +381,4 @@ VoiceType NpcVoiceManager::detectVoiceType(uint32_t creatureEntry) const {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

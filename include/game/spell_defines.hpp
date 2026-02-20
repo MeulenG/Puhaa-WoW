@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -273,4 +273,4 @@ inline const char* getSpellCastResultString(uint8_t result) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

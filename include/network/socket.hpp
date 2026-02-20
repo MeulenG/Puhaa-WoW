@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 class Packet;
@@ -29,4 +29,4 @@ protected:
 };
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

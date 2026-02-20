@@ -4,7 +4,7 @@
 #include "core/logger.hpp"
 #include <random>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 namespace {
@@ -351,4 +351,4 @@ void MovementSoundManager::playLand(PlayerRace race) {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

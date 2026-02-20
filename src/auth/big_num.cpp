@@ -3,7 +3,7 @@
 #include <openssl/rand.h>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 BigNum::BigNum() : bn(BN_new()) {
@@ -149,4 +149,4 @@ std::string BigNum::toDecimal() const {
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

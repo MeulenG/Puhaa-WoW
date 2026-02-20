@@ -90,7 +90,7 @@ namespace {
         return ".tele " + input;
     }
 
-    bool raySphereIntersect(const wowee::rendering::Ray& ray, const glm::vec3& center, float radius, float& tOut) {
+    bool raySphereIntersect(const pwow::rendering::Ray& ray, const glm::vec3& center, float radius, float& tOut) {
         glm::vec3 oc = ray.origin - center;
         float b = glm::dot(oc, ray.direction);
         float c = glm::dot(oc, oc) - radius * radius;
@@ -103,22 +103,22 @@ namespace {
         return true;
     }
 
-    std::string getEntityName(const std::shared_ptr<wowee::game::Entity>& entity) {
-        if (entity->getType() == wowee::game::ObjectType::PLAYER) {
-            auto player = std::static_pointer_cast<wowee::game::Player>(entity);
+    std::string getEntityName(const std::shared_ptr<pwow::game::Entity>& entity) {
+        if (entity->getType() == pwow::game::ObjectType::PLAYER) {
+            auto player = std::static_pointer_cast<pwow::game::Player>(entity);
             if (!player->getName().empty()) return player->getName();
-        } else if (entity->getType() == wowee::game::ObjectType::UNIT) {
-            auto unit = std::static_pointer_cast<wowee::game::Unit>(entity);
+        } else if (entity->getType() == pwow::game::ObjectType::UNIT) {
+            auto unit = std::static_pointer_cast<pwow::game::Unit>(entity);
             if (!unit->getName().empty()) return unit->getName();
-        } else if (entity->getType() == wowee::game::ObjectType::GAMEOBJECT) {
-            auto go = std::static_pointer_cast<wowee::game::GameObject>(entity);
+        } else if (entity->getType() == pwow::game::ObjectType::GAMEOBJECT) {
+            auto go = std::static_pointer_cast<pwow::game::GameObject>(entity);
             if (!go->getName().empty()) return go->getName();
         }
         return "Unknown";
     }
 }
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 GameScreen::GameScreen() {
     loadSettings();
@@ -6110,10 +6110,10 @@ std::string GameScreen::getSettingsPath() {
     std::string dir;
 #ifdef _WIN32
     const char* appdata = std::getenv("APPDATA");
-    dir = appdata ? std::string(appdata) + "\\wowee" : ".";
+    dir = appdata ? std::string(appdata) + "\\puhaa-wow" : ".";
 #else
     const char* home = std::getenv("HOME");
-    dir = home ? std::string(home) + "/.wowee" : ".";
+    dir = home ? std::string(home) + "/.puhaa-wow" : ".";
 #endif
     return dir + "/settings.cfg";
 }
@@ -7272,4 +7272,4 @@ void GameScreen::renderDingEffect() {
     }
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

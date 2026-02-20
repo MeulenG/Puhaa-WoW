@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cstring>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 network::Packet LogonChallengePacket::build(const std::string& account, const ClientInfo& info) {
@@ -386,4 +386,4 @@ bool RealmListResponseParser::parse(network::Packet& packet, RealmListResponse& 
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

@@ -37,7 +37,7 @@
 #include <cstring>
 #include <openssl/sha.h>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 namespace {
@@ -2401,7 +2401,7 @@ bool GameHandler::loadWardenCRFile(const std::string& moduleHashHex) {
     if (const char* h = std::getenv("HOME")) homeDir = h;
     else homeDir = ".";
 
-    std::string crPath = homeDir + "/.local/share/wowee/warden_cache/" + moduleHashHex + ".cr";
+    std::string crPath = homeDir + "/.local/share/puhaa-wow/warden_cache/" + moduleHashHex + ".cr";
 
     std::ifstream crFile(crPath, std::ios::binary);
     if (!crFile) {
@@ -2584,7 +2584,7 @@ void GameHandler::handleWardenData(network::Packet& packet) {
                     std::string homeDir;
                     if (const char* h = std::getenv("HOME")) homeDir = h;
                     else homeDir = ".";
-                    std::string cacheDir = homeDir + "/.local/share/wowee/warden_cache";
+                    std::string cacheDir = homeDir + "/.local/share/puhaa-wow/warden_cache";
                     std::filesystem::create_directories(cacheDir);
 
                     std::string hashHex;
@@ -10553,10 +10553,10 @@ std::string GameHandler::getCharacterConfigDir() {
     std::string dir;
 #ifdef _WIN32
     const char* appdata = std::getenv("APPDATA");
-    dir = appdata ? std::string(appdata) + "\\wowee\\characters" : "characters";
+    dir = appdata ? std::string(appdata) + "\\puhaa-wow\\characters" : "characters";
 #else
     const char* home = std::getenv("HOME");
-    dir = home ? std::string(home) + "/.wowee/characters" : "characters";
+    dir = home ? std::string(home) + "/.puhaa-wow/characters" : "characters";
 #endif
     return dir;
 }
@@ -11285,4 +11285,4 @@ void GameHandler::handleAuctionCommandResult(network::Packet& packet) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

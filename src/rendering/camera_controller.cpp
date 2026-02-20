@@ -11,7 +11,7 @@
 #include <cmath>
 #include <limits>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 namespace {
@@ -1692,4 +1692,4 @@ void CameraController::triggerMountJump() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

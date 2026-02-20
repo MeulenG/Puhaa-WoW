@@ -3,7 +3,7 @@
 #include <string>
 #include <deque>
 
-namespace wowee {
+namespace pwow {
 
 namespace rendering {
 class Renderer;
@@ -97,4 +97,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

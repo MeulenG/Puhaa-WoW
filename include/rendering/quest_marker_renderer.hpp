@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace rendering {
 
@@ -68,4 +68,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

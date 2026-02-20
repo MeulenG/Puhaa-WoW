@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 
 // Forward declarations
 namespace pipeline { class AssetManager; }
@@ -225,4 +225,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -1,7 +1,7 @@
 #include "rendering/frustum.hpp"
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 void Frustum::extractFromMatrix(const glm::mat4& vp) {
@@ -103,4 +103,4 @@ bool Frustum::intersectsAABB(const glm::vec3& min, const glm::vec3& max) const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

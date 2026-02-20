@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-namespace wowee::core {
+namespace pwow::core {
 
 struct SpawnPreset {
     const char* key;
@@ -27,4 +27,4 @@ inline const SpawnPreset SPAWN_PRESETS[] = {
 
 inline constexpr int SPAWN_PRESET_COUNT = static_cast<int>(sizeof(SPAWN_PRESETS) / sizeof(SPAWN_PRESETS[0]));
 
-} // namespace wowee::core
+} // namespace pwow::core

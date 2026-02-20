@@ -6,7 +6,7 @@
 #include <vector>
 #include <functional>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 /**
  * Authentication screen UI
@@ -111,4 +111,4 @@ private:
     bool musicPlaying = false;
 };
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

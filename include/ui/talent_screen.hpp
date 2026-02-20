@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 
 namespace ui {
@@ -40,4 +40,4 @@ private:
 };
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

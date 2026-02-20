@@ -26,11 +26,11 @@
 #define INVALID_HANDLE_VALUE ((HANDLE)(long long)-1)
 #endif
 
-namespace wowee {
+namespace pwow {
 namespace tools {
 
 namespace fs = std::filesystem;
-using wowee::pipeline::DBCFile;
+using pwow::pipeline::DBCFile;
 
 // Archive descriptor for priority-based loading
 struct ArchiveDesc {
@@ -197,7 +197,7 @@ static bool convertDbcToCsv(const std::string& dbcPath, const std::string& csvPa
 }
 
 static std::vector<std::string> getUsedDbcNamesForExpansion(const std::string& expansion) {
-    // Keep this list small: these are the ~30 tables wowee actually uses.
+    // Keep this list small: these are the ~30 tables puhaa-wow actually uses.
     // Other DBCs can remain extracted (ignored) as binary.
     (void)expansion;
     return {
@@ -885,4 +885,4 @@ bool Extractor::run(const Options& opts) {
 }
 
 } // namespace tools
-} // namespace wowee
+} // namespace pwow

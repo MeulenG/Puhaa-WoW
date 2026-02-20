@@ -21,7 +21,7 @@
 #include <optional>
 #include <algorithm>
 
-namespace wowee::game {
+namespace pwow::game {
     class TransportManager;
     class WardenCrypto;
     class WardenMemory;
@@ -30,7 +30,7 @@ namespace wowee::game {
     class PacketParsers;
 }
 
-namespace wowee {
+namespace pwow {
 namespace network { class WorldSocket; class Packet; }
 
 namespace game {
@@ -1605,4 +1605,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

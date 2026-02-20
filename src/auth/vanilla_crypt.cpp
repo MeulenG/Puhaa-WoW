@@ -1,6 +1,6 @@
 #include "auth/vanilla_crypt.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 void VanillaCrypt::init(const std::vector<uint8_t>& sessionKey) {
@@ -31,4 +31,4 @@ void VanillaCrypt::decrypt(uint8_t* data, size_t length) {
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

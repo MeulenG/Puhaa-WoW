@@ -7,15 +7,15 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace wowee::rendering {
+namespace pwow::rendering {
     class WMORenderer;
 }
 
-namespace wowee::pipeline {
+namespace pwow::pipeline {
     class AssetManager;
 }
 
-namespace wowee::game {
+namespace pwow::game {
 
 struct TimedPoint {
     uint32_t tMs;          // Time in milliseconds from DBC
@@ -145,4 +145,4 @@ private:
     float elapsedTime_ = 0.0f;  // Total elapsed time (seconds)
 };
 
-} // namespace wowee::game
+} // namespace pwow::game

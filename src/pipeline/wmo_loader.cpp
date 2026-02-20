@@ -3,7 +3,7 @@
 #include <cstring>
 #include <glm/gtc/quaternion.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 namespace {
@@ -643,4 +643,4 @@ bool WMOLoader::loadGroup(const std::vector<uint8_t>& groupData,
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

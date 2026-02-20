@@ -3,7 +3,7 @@
 #include "core/input.hpp"
 #include <imgui.h>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 namespace {
 // Helper function to replace gender placeholders, pronouns, and name
@@ -195,4 +195,4 @@ void QuestLogScreen::render(game::GameHandler& gameHandler) {
     }
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

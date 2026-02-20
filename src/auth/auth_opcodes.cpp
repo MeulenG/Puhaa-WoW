@@ -1,7 +1,7 @@
 #include "auth/auth_opcodes.hpp"
 #include <cstdio>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 static char authResultBuf[256];
@@ -49,4 +49,4 @@ const char* getAuthResultString(AuthResult result) {
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

@@ -8,7 +8,7 @@
 set -euo pipefail
 
 DEFAULT_DATA="./Data"
-DEFAULT_BACKUP="$HOME/.local/share/wowee/backups"
+DEFAULT_BACKUP="$HOME/.local/share/puhaa-wow/backups"
 
 # --- Resolve data directory ---
 DATA_DIR="${1:-}"
@@ -38,7 +38,7 @@ mkdir -p "$BACKUP_DIR"
 
 # --- Build archive name with timestamp ---
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-ARCHIVE="$BACKUP_DIR/wowee_assets_$TIMESTAMP.tar.zst"
+ARCHIVE="$BACKUP_DIR/puhaa-wow_assets_$TIMESTAMP.tar.zst"
 
 # --- Measure source size ---
 DATA_SIZE=$(du -sh "$DATA_DIR" | cut -f1)
@@ -49,10 +49,10 @@ echo "Destination: $ARCHIVE"
 if command -v zstd &>/dev/null; then
     tar cf - -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")" | zstd -T0 -3 -o "$ARCHIVE"
 elif command -v pigz &>/dev/null; then
-    ARCHIVE="$BACKUP_DIR/wowee_assets_$TIMESTAMP.tar.gz"
+    ARCHIVE="$BACKUP_DIR/puhaa-wow_assets_$TIMESTAMP.tar.gz"
     tar cf - -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")" | pigz -p "$(nproc)" > "$ARCHIVE"
 else
-    ARCHIVE="$BACKUP_DIR/wowee_assets_$TIMESTAMP.tar.gz"
+    ARCHIVE="$BACKUP_DIR/puhaa-wow_assets_$TIMESTAMP.tar.gz"
     tar czf "$ARCHIVE" -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")"
 fi
 

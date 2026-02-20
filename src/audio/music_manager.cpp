@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 MusicManager::MusicManager() = default;
@@ -201,4 +201,4 @@ void MusicManager::update(float deltaTime) {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

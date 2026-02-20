@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 /**
@@ -44,4 +44,4 @@ private:
 };
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

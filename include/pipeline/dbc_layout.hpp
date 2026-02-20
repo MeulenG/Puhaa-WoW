@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 /**
@@ -61,4 +61,4 @@ inline uint32_t dbcField(const std::string& dbcName, const std::string& fieldNam
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

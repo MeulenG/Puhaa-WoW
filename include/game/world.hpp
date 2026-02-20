@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 class World {
@@ -15,4 +15,4 @@ public:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

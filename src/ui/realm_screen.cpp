@@ -1,7 +1,7 @@
 #include "ui/realm_screen.hpp"
 #include <imgui.h>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 RealmScreen::RealmScreen() {
 }
@@ -247,4 +247,4 @@ ImVec4 RealmScreen::getPopulationColor(float population) const {
     }
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

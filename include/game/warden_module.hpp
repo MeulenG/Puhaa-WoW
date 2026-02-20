@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <map>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // Forward declarations
@@ -202,7 +202,7 @@ public:
      * Save module to disk cache
      *
      * Cached modules skip re-download on reconnect.
-     * Cache directory: ~/.local/share/wowee/warden_cache/
+     * Cache directory: ~/.local/share/puhaa-wow/warden_cache/
      */
     bool cacheModule(const std::vector<uint8_t>& md5Hash,
                      const std::vector<uint8_t>& moduleData);
@@ -222,4 +222,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace rendering {
 
@@ -101,4 +101,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

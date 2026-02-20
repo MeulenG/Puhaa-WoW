@@ -9,7 +9,7 @@
 #include <string>
 #include <optional>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
     struct WMOModel;
     struct WMOGroup;
@@ -702,4 +702,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

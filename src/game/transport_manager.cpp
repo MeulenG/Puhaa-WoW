@@ -12,7 +12,7 @@
 #include <map>
 #include <algorithm>
 
-namespace wowee::game {
+namespace pwow::game {
 
 TransportManager::TransportManager() = default;
 TransportManager::~TransportManager() = default;
@@ -1256,4 +1256,4 @@ uint32_t TransportManager::pickFallbackMovingPath(uint32_t entry, uint32_t displ
     return 0;
 }
 
-} // namespace wowee::game
+} // namespace pwow::game

@@ -6,7 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 LensFlare::LensFlare() {
@@ -285,4 +285,4 @@ void LensFlare::cleanup() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

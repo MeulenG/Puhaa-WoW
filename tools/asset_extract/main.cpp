@@ -16,7 +16,7 @@ static void printUsage(const char* prog) {
               << "Options:\n"
               << "  --expansion <id>    Expansion: classic, turtle, tbc, wotlk (default: auto-detect)\n"
               << "  --locale <id>       Locale: enUS, deDE, frFR, etc. (default: auto-detect)\n"
-              << "  --only-used-dbcs    Extract only the DBCs wowee uses (no other assets)\n"
+              << "  --only-used-dbcs    Extract only the DBCs puhaa-wow uses (no other assets)\n"
               << "  --skip-dbc          Do not extract DBFilesClient/*.dbc (visual assets only)\n"
               << "  --dbc-csv           Convert selected DBFilesClient/*.dbc to CSV under\n"
               << "                      <output>/expansions/<expansion>/db/*.csv (for committing)\n"
@@ -30,7 +30,7 @@ static void printUsage(const char* prog) {
 }
 
 int main(int argc, char** argv) {
-    wowee::tools::Extractor::Options opts;
+    pwow::tools::Extractor::Options opts;
     std::string expansion;
     std::string locale;
 
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 
     // Auto-detect expansion if not specified
     if (expansion.empty() || expansion == "auto") {
-        expansion = wowee::tools::Extractor::detectExpansion(opts.mpqDir);
+        expansion = pwow::tools::Extractor::detectExpansion(opts.mpqDir);
         if (expansion.empty()) {
             std::cerr << "Error: Could not auto-detect expansion. No known MPQ archives found in: "
                       << opts.mpqDir << "\n"
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
 
     // Auto-detect locale if not specified
     if (locale.empty() || locale == "auto") {
-        locale = wowee::tools::Extractor::detectLocale(opts.mpqDir);
+        locale = pwow::tools::Extractor::detectLocale(opts.mpqDir);
         if (locale.empty()) {
             std::cerr << "Warning: No locale directory found, skipping locale-specific archives\n";
         } else {
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     }
     opts.locale = locale;
 
-    std::cout << "=== Wowee Asset Extractor ===\n";
+    std::cout << "=== Puhaa-WoW Asset Extractor ===\n";
     std::cout << "MPQ directory: " << opts.mpqDir << "\n";
     std::cout << "Output:        " << opts.outputDir << "\n";
     std::cout << "Expansion:     " << expansion << "\n";
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
         std::cout << "Reference:     " << opts.referenceManifest << " (delta mode)\n";
     }
 
-    if (!wowee::tools::Extractor::run(opts)) {
+    if (!pwow::tools::Extractor::run(opts)) {
         std::cerr << "Extraction failed!\n";
         return 1;
     }

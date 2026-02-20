@@ -1,7 +1,7 @@
 #include "game/player.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 // All methods are inline in header
 } // namespace game
-} // namespace wowee
+} // namespace pwow

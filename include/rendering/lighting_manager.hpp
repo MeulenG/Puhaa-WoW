@@ -5,7 +5,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class DBCFile; class AssetManager; }
 
 namespace rendering {
@@ -260,4 +260,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -9,7 +9,7 @@ extern "C" {
 #include <libavutil/imgutils.h>
 }
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 VideoPlayer::VideoPlayer() = default;
@@ -250,4 +250,4 @@ void VideoPlayer::uploadFrame() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

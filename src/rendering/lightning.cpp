@@ -6,7 +6,7 @@
 #include <random>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 namespace {
@@ -411,4 +411,4 @@ void Lightning::setIntensity(float intensity) {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

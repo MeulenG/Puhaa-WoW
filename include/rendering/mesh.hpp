@@ -4,7 +4,7 @@
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 struct Vertex {
@@ -30,4 +30,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

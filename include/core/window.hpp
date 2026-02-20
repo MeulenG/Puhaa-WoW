@@ -4,11 +4,11 @@
 #include <memory>
 #include <SDL2/SDL.h>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 struct WindowConfig {
-    std::string title = "Wowee Native";
+    std::string title = "Puhaa-WoW";
     int width = 1920;
     int height = 1080;
     bool fullscreen = false;
@@ -61,4 +61,4 @@ private:
 };
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

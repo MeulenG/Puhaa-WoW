@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace rendering {
 
@@ -95,4 +95,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

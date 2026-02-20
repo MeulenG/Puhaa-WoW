@@ -18,7 +18,7 @@
     #include "game/warden_emulator.hpp"
 #endif
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // ============================================================================
@@ -688,7 +688,7 @@ bool WardenModule::bindAPIs() {
 
         std::cout << "[WardenModule] Platform: Linux - Windows module execution NOT supported" << std::endl;
         std::cout << "[WardenModule] Options:" << std::endl;
-        std::cout << "[WardenModule]   1. Run wowee under Wine (provides Windows API layer)" << std::endl;
+        std::cout << "[WardenModule]   1. Run puhaa-wow under Wine (provides Windows API layer)" << std::endl;
         std::cout << "[WardenModule]   2. Use a Windows VM" << std::endl;
         std::cout << "[WardenModule]   3. Implement Windows API stubs (limited, complex)" << std::endl;
 
@@ -906,10 +906,10 @@ bool WardenModule::initializeModule() {
 // ============================================================================
 
 WardenModuleManager::WardenModuleManager() {
-    // Set cache directory: ~/.local/share/wowee/warden_cache/
+    // Set cache directory: ~/.local/share/puhaa-wow/warden_cache/
     const char* home = std::getenv("HOME");
     if (home) {
-        cacheDirectory_ = std::string(home) + "/.local/share/wowee/warden_cache";
+        cacheDirectory_ = std::string(home) + "/.local/share/puhaa-wow/warden_cache";
     } else {
         cacheDirectory_ = "./warden_cache";
     }
@@ -1029,4 +1029,4 @@ std::string WardenModuleManager::getCachePath(const std::vector<uint8_t>& md5Has
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

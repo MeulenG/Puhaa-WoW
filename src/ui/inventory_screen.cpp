@@ -16,7 +16,7 @@
 #include <cstring>
 #include <unordered_set>
 
-namespace wowee {
+namespace pwow {
 namespace ui {
 
 InventoryScreen::~InventoryScreen() {
@@ -1522,4 +1522,4 @@ void InventoryScreen::renderItemTooltip(const game::ItemDef& item) {
 }
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

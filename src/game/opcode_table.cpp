@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // Global active opcode table pointer
@@ -794,4 +794,4 @@ bool OpcodeTable::hasOpcode(LogicalOpcode op) const {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

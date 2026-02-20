@@ -31,11 +31,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::signal(SIGTERM, crashHandler);
     std::signal(SIGINT,  crashHandler);
     try {
-        wowee::core::Logger::getInstance().setLogLevel(wowee::core::LogLevel::INFO);
-        LOG_INFO("=== Wowee Native Client ===");
+        pwow::core::Logger::getInstance().setLogLevel(pwow::core::LogLevel::INFO);
+        LOG_INFO("=== Puhaa-WoW Client ===");
         LOG_INFO("Starting application...");
 
-        wowee::core::Application app;
+        pwow::core::Application app;
 
         if (!app.initialize()) {
             LOG_FATAL("Failed to initialize application");
