@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(wowee VERSION 1.0.0 LANGUAGES CXX)
+project(puhaa-wow VERSION 1.0.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -13,7 +13,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Options
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
-option(WOWEE_BUILD_TESTS "Build tests" OFF)
+option(PWOW_BUILD_TESTS "Build tests" OFF)
 
 # Find required packages
 find_package(SDL2 REQUIRED)
@@ -71,7 +71,7 @@ else()
 endif()
 
 # Source files
-set(WOWEE_SOURCES
+set(PWOW_SOURCES
     # Core
     src/core/application.cpp
     src/core/window.cpp
@@ -195,7 +195,7 @@ set(WOWEE_SOURCES
     src/main.cpp
 )
 
-set(WOWEE_HEADERS
+set(PWOW_HEADERS
     include/core/application.hpp
     include/core/window.hpp
     include/core/input.hpp
@@ -288,16 +288,16 @@ set(WOWEE_HEADERS
     include/ui/talent_screen.hpp
 )
 
-set(WOWEE_PLATFORM_SOURCES)
+set(PWOW_PLATFORM_SOURCES)
 if(WIN32)
-    list(APPEND WOWEE_PLATFORM_SOURCES resources/wowee.rc)
+    list(APPEND PWOW_PLATFORM_SOURCES resources/puhaa-wow.rc)
 endif()
 
 # Create executable
-add_executable(wowee ${WOWEE_SOURCES} ${WOWEE_HEADERS} ${WOWEE_PLATFORM_SOURCES})
+add_executable(puhaa-wow ${PWOW_SOURCES} ${PWOW_HEADERS} ${PWOW_PLATFORM_SOURCES})
 
 # Include directories
-target_include_directories(wowee PRIVATE
+target_include_directories(puhaa-wow PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/extern
@@ -305,7 +305,7 @@ target_include_directories(wowee PRIVATE
 )
 
 # Link libraries
-target_link_libraries(wowee PRIVATE
+target_link_libraries(puhaa-wow PRIVATE
     SDL2::SDL2
     OpenGL::GL
     GLEW::GLEW
@@ -316,47 +316,47 @@ target_link_libraries(wowee PRIVATE
     ${CMAKE_DL_LIBS}
 )
 
-target_link_libraries(wowee PRIVATE ${FFMPEG_LIBRARIES})
+target_link_libraries(puhaa-wow PRIVATE ${FFMPEG_LIBRARIES})
 if (FFMPEG_LIBRARY_DIRS)
-    target_link_directories(wowee PRIVATE ${FFMPEG_LIBRARY_DIRS})
+    target_link_directories(puhaa-wow PRIVATE ${FFMPEG_LIBRARY_DIRS})
 endif()
 
 # Platform-specific libraries
 if(UNIX AND NOT APPLE)
-    target_link_libraries(wowee PRIVATE X11)
+    target_link_libraries(puhaa-wow PRIVATE X11)
 endif()
 if(WIN32)
-    target_link_libraries(wowee PRIVATE ws2_32)
+    target_link_libraries(puhaa-wow PRIVATE ws2_32)
     # SDL2main provides WinMain entry point on Windows
     if(TARGET SDL2::SDL2main)
-        target_link_libraries(wowee PRIVATE SDL2::SDL2main)
+        target_link_libraries(puhaa-wow PRIVATE SDL2::SDL2main)
     endif()
 endif()
 
 # Link ImGui if available
 if(TARGET imgui)
-    target_link_libraries(wowee PRIVATE imgui)
+    target_link_libraries(puhaa-wow PRIVATE imgui)
 endif()
 
 # Link Unicorn if available
 if(HAVE_UNICORN)
-    target_link_libraries(wowee PRIVATE ${UNICORN_LIBRARY})
-    target_include_directories(wowee PRIVATE ${UNICORN_INCLUDE_DIR})
-    target_compile_definitions(wowee PRIVATE HAVE_UNICORN)
+    target_link_libraries(puhaa-wow PRIVATE ${UNICORN_LIBRARY})
+    target_include_directories(puhaa-wow PRIVATE ${UNICORN_INCLUDE_DIR})
+    target_compile_definitions(puhaa-wow PRIVATE HAVE_UNICORN)
 endif()
 
 # Link GLM if found
 if(TARGET glm::glm)
-    target_link_libraries(wowee PRIVATE glm::glm)
+    target_link_libraries(puhaa-wow PRIVATE glm::glm)
 elseif(glm_FOUND)
-    target_include_directories(wowee PRIVATE ${GLM_INCLUDE_DIRS})
+    target_include_directories(puhaa-wow PRIVATE ${GLM_INCLUDE_DIRS})
 endif()
 
 # Compiler warnings
 if(MSVC)
-    target_compile_options(wowee PRIVATE /W4)
+    target_compile_options(puhaa-wow PRIVATE /W4)
 else()
-    target_compile_options(wowee PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(puhaa-wow PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Copy assets to build directory
@@ -364,7 +364,7 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
      DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
 # Install targets
-install(TARGETS wowee
+install(TARGETS puhaa-wow
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
@@ -372,21 +372,21 @@ install(TARGETS wowee
 
 # Linux desktop integration (launcher + icon)
 if(UNIX AND NOT APPLE)
-    set(WOWEE_LINUX_ICON_PATH "${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps/wowee.png")
+    set(PWOW_LINUX_ICON_PATH "${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps/puhaa-wow.png")
     configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/resources/wowee.desktop.in
-        ${CMAKE_CURRENT_BINARY_DIR}/wowee.desktop
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/puhaa-wow.desktop.in
+        ${CMAKE_CURRENT_BINARY_DIR}/puhaa-wow.desktop
         @ONLY
     )
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/wowee.desktop
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/puhaa-wow.desktop
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/assets/Wowee.png
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps
-        RENAME wowee.png)
+        RENAME puhaa-wow.png)
 endif()
 
-# ---- Tool: asset_extract (MPQ → loose files) ----
+# ---- Tool: asset_extract (MPQ -> loose files) ----
 if(STORMLIB_LIBRARY AND STORMLIB_INCLUDE_DIR)
     add_executable(asset_extract
         tools/asset_extract/main.cpp
@@ -401,9 +401,11 @@ if(STORMLIB_LIBRARY AND STORMLIB_INCLUDE_DIR)
         ${CMAKE_CURRENT_SOURCE_DIR}/tools/asset_extract
         ${STORMLIB_INCLUDE_DIR}
     )
+    find_package(BZip2 REQUIRED)
     target_link_libraries(asset_extract PRIVATE
         ${STORMLIB_LIBRARY}
         ZLIB::ZLIB
+        BZip2::BZip2
         Threads::Threads
     )
     set_target_properties(asset_extract PROPERTIES
@@ -414,7 +416,7 @@ else()
     message(STATUS "  asset_extract tool: DISABLED (requires StormLib)")
 endif()
 
-# ---- Tool: dbc_to_csv (DBC → CSV text) ----
+# ---- Tool: dbc_to_csv (DBC -> CSV text) ----
 add_executable(dbc_to_csv
     tools/dbc_to_csv/main.cpp
     src/pipeline/dbc_loader.cpp
@@ -469,7 +471,7 @@ set_target_properties(auth_login_probe PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# ---- Tool: blp_convert (BLP ↔ PNG) ----
+# ---- Tool: blp_convert (BLP <-> PNG) ----
 add_executable(blp_convert
     tools/blp_convert/main.cpp
     src/pipeline/blp_loader.cpp
@@ -486,7 +488,7 @@ set_target_properties(blp_convert PROPERTIES
 
 # Print configuration summary
 message(STATUS "")
-message(STATUS "Wowee Configuration:")
+message(STATUS "Puhaa-WoW Configuration:")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  SDL2: ${SDL2_VERSION}")
