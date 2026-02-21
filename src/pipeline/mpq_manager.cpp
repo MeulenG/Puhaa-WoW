@@ -22,7 +22,7 @@ typedef void* HANDLE;
 #define INVALID_HANDLE_VALUE ((HANDLE)(long long)-1)
 #endif
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 namespace {
@@ -78,8 +78,8 @@ bool MPQManager::initialize(const std::string& dataPath_) {
     LOG_INFO("Initializing MPQ manager with data path: ", dataPath);
 
     // Guard against cache blowups from huge numbers of unique probes.
-    fileArchiveCacheMaxEntries_ = envSizeTOrDefault("WOWEE_MPQ_ARCHIVE_CACHE_MAX", fileArchiveCacheMaxEntries_);
-    fileArchiveCacheMisses_ = envFlagEnabled("WOWEE_MPQ_CACHE_MISSES");
+    fileArchiveCacheMaxEntries_ = envSizeTOrDefault("PWOW_MPQ_ARCHIVE_CACHE_MAX", fileArchiveCacheMaxEntries_);
+    fileArchiveCacheMisses_ = envFlagEnabled("PWOW_MPQ_CACHE_MISSES");
     LOG_INFO("MPQ archive lookup cache: maxEntries=", fileArchiveCacheMaxEntries_,
              " cacheMisses=", (fileArchiveCacheMisses_ ? "yes" : "no"));
 
@@ -420,14 +420,14 @@ bool MPQManager::loadPatchArchives() {
     return false;
 #endif
 
-    const bool disableLetterPatches = envFlagEnabled("WOWEE_DISABLE_LETTER_PATCHES");
-    const bool disableNumericPatches = envFlagEnabled("WOWEE_DISABLE_NUMERIC_PATCHES");
+    const bool disableLetterPatches = envFlagEnabled("PWOW_DISABLE_LETTER_PATCHES");
+    const bool disableNumericPatches = envFlagEnabled("PWOW_DISABLE_NUMERIC_PATCHES");
 
     if (disableLetterPatches) {
-        LOG_WARNING("MPQ letter patches disabled via WOWEE_DISABLE_LETTER_PATCHES=1");
+        LOG_WARNING("MPQ letter patches disabled via PWOW_DISABLE_LETTER_PATCHES=1");
     }
     if (disableNumericPatches) {
-        LOG_WARNING("MPQ numeric patches disabled via WOWEE_DISABLE_NUMERIC_PATCHES=1");
+        LOG_WARNING("MPQ numeric patches disabled via PWOW_DISABLE_NUMERIC_PATCHES=1");
     }
 
     // WoW 3.3.5a patch archives (in order of priority, highest first)
@@ -520,4 +520,4 @@ bool MPQManager::loadLocaleArchives(const std::string& locale) {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

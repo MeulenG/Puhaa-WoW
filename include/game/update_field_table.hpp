@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -103,4 +103,4 @@ inline uint16_t fieldIndex(UF field) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

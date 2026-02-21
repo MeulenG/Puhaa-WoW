@@ -28,7 +28,7 @@
 
 #include <filesystem>
 
-namespace wowee {
+namespace pwow {
 namespace platform {
 
 // Return a platform-appropriate temp file path for the given filename.
@@ -165,4 +165,4 @@ inline bool isProcessRunning(ProcessHandle& handle) {
 }
 
 } // namespace platform
-} // namespace wowee
+} // namespace pwow

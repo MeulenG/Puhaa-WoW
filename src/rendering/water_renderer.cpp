@@ -10,7 +10,7 @@
 #include <cmath>
 #include <limits>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 WaterRenderer::WaterRenderer() = default;
@@ -930,4 +930,4 @@ float WaterRenderer::getLiquidAlpha(uint16_t liquidType) const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

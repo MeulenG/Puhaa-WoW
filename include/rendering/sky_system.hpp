@@ -3,7 +3,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class Camera;
@@ -128,4 +128,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

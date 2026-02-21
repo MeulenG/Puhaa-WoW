@@ -9,7 +9,7 @@
 #include <SDL2/SDL.h>
 #include <cmath>
 
-namespace wowee { namespace rendering {
+namespace pwow { namespace rendering {
 
 QuestMarkerRenderer::QuestMarkerRenderer() {
 }
@@ -277,4 +277,4 @@ void QuestMarkerRenderer::render(const Camera& camera) {
     glDisable(GL_BLEND);
 }
 
-}} // namespace wowee::rendering
+}} // namespace pwow::rendering

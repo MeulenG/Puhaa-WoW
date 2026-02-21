@@ -5,7 +5,7 @@
 #include <string>
 #include <functional>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 /**
  * Realm selection screen UI
@@ -86,4 +86,4 @@ private:
     ImVec4 getPopulationColor(float population) const;
 };
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

@@ -10,7 +10,7 @@
 #include <cctype>
 #include <cstdlib>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 AuthHandler::AuthHandler() {
@@ -255,7 +255,7 @@ void AuthHandler::sendLogonProof() {
     // We compute it when checksumSalt was provided (always present on success challenge) and files exist.
     {
         std::vector<std::string> candidateDirs;
-        if (const char* env = std::getenv("WOWEE_INTEGRITY_DIR")) {
+        if (const char* env = std::getenv("PWOW_INTEGRITY_DIR")) {
             if (env && *env) candidateDirs.push_back(env);
         }
         // Default local extraction layout
@@ -287,7 +287,7 @@ void AuthHandler::sendLogonProof() {
         if (!ok) {
             LOG_WARNING("Integrity hash not computed (", lastErr,
                         "). Server may reject classic clients without it. "
-                        "Set WOWEE_INTEGRITY_DIR to your client folder.");
+                        "Set PWOW_INTEGRITY_DIR to your client folder.");
         }
     }
 
@@ -518,4 +518,4 @@ void AuthHandler::fail(const std::string& reason) {
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -354,4 +354,4 @@ inline std::unique_ptr<PacketParsers> createPacketParsers(const std::string& exp
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

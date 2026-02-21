@@ -11,7 +11,7 @@
 typedef struct uc_struct uc_engine;
 typedef size_t uc_hook;
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -24,7 +24,7 @@ namespace game {
  * - CPU Emulation: x86 (32-bit) via Unicorn Engine
  * - Memory: Emulated address space (separate from host process)
  * - API Hooks: Intercept Windows API calls and provide implementations
- * - Callbacks: Bridge between emulated module and native wowee code
+ * - Callbacks: Bridge between emulated module and native puhaa-wow code
  *
  * Benefits:
  * - Works on Linux/macOS/BSD without Wine
@@ -172,4 +172,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

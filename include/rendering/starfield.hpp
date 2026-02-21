@@ -4,7 +4,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class Shader;
@@ -76,4 +76,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

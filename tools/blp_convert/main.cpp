@@ -15,8 +15,8 @@
 
 namespace fs = std::filesystem;
 
-using wowee::pipeline::BLPImage;
-using wowee::pipeline::BLPLoader;
+using pwow::pipeline::BLPImage;
+using pwow::pipeline::BLPLoader;
 
 static std::vector<uint8_t> readFileData(const std::string& path) {
     std::ifstream f(path, std::ios::binary | std::ios::ate);

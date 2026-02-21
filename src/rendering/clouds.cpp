@@ -6,7 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Clouds::Clouds() {
@@ -309,4 +309,4 @@ void Clouds::cleanup() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 static bool readWholeFile(const std::string& path, std::vector<uint8_t>& out, std::string& err) {
@@ -104,4 +104,4 @@ bool computeIntegrityHashWin32(const std::array<uint8_t, 16>& checksumSalt,
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 // Authentication server opcodes
@@ -50,4 +50,4 @@ enum class AuthResult : uint8_t {
 const char* getAuthResultString(AuthResult result);
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 namespace {
@@ -332,4 +332,4 @@ bool DBCFile::loadCSV(const std::vector<uint8_t>& csvData) {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

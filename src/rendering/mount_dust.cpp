@@ -6,7 +6,7 @@
 #include <random>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 static std::mt19937& rng() {
@@ -209,4 +209,4 @@ void MountDust::render(const Camera& camera) {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

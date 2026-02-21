@@ -11,7 +11,7 @@
 #include <cstdlib>
 #include <limits>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 TerrainRenderer::TerrainRenderer() {
@@ -676,4 +676,4 @@ void TerrainRenderer::calculateBoundingSphere(TerrainChunkGPU& gpuChunk,
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

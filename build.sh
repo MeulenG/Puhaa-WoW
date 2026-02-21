@@ -1,17 +1,14 @@
 #!/bin/bash
-# Wowee Build Script - Ensures no stale binaries
 
 set -e  # Exit on error
 
 cd "$(dirname "$0")"
 
-echo "Building wowee..."
+echo "Building puhaa-wow..."
 
-# Create build directory if it doesn't exist
 mkdir -p build
 cd build
 
-# Configure with cmake
 echo "Configuring with CMake..."
 cmake .. -DCMAKE_BUILD_TYPE=Release
 
@@ -26,6 +23,13 @@ if [ ! -e Data ]; then
 fi
 cd ..
 
+cd extern/unicorn-2.1.4
+mkdir -p build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --parallel $(nproc)
+cd ../../../..
+
 echo ""
-echo "Build complete! Binary: build/bin/wowee"
-echo "Run with: cd build/bin && ./wowee"
+echo "Build complete! Binary: build/bin/puhaa-wow"
+echo "Run with: cd build/bin && ./puhaa-wow"

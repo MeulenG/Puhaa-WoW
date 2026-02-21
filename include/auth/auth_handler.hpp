@@ -7,7 +7,7 @@
 #include <functional>
 #include <array>
 
-namespace wowee {
+namespace pwow {
 namespace network { class TCPSocket; class Packet; }
 
 namespace auth {
@@ -116,4 +116,4 @@ private:
 };
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

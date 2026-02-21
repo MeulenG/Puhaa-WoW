@@ -11,7 +11,7 @@
 #include <string>
 #include <thread>
 
-using namespace wowee;
+using namespace pwow;
 
 static void usage() {
     std::cerr

@@ -2,7 +2,7 @@
 #include "core/logger.hpp"
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 TerrainMesh TerrainMeshGenerator::generate(const ADTTerrain& terrain) {
@@ -185,7 +185,7 @@ std::vector<TerrainVertex> TerrainMeshGenerator::generateVertices(const MapChunk
         int y = index / 17;  // Row (0-8)
         int x = index % 17;  // Column (0-16)
 
-        // Columns 9-16 are offset by 0.5 units (wowee exact logic)
+        // Columns 9-16 are offset by 0.5 units (exact logic)
         float offsetX = static_cast<float>(x);
         float offsetY = static_cast<float>(y);
 
@@ -196,8 +196,8 @@ std::vector<TerrainVertex> TerrainMeshGenerator::generateVertices(const MapChunk
 
         TerrainVertex vertex;
 
-        // Position - match wowee.js coordinate layout (swap X/Y and negate)
-        // wowee.js: X = -(y * unitSize), Y = -(x * unitSize)
+        // Position - match original JS coordinate layout (swap X/Y and negate)
+        // original JS: X = -(y * unitSize), Y = -(x * unitSize)
         vertex.position[0] = chunkBaseX - (offsetY * unitSize);
         vertex.position[1] = chunkBaseY - (offsetX * unitSize);
         vertex.position[2] = chunk.position[2] + heightMap.heights[index];
@@ -235,7 +235,7 @@ std::vector<TerrainIndex> TerrainMeshGenerator::generateIndices(const MapChunk& 
     std::vector<TerrainIndex> indices;
     indices.reserve(768);  // 8x8 quads * 4 triangles * 3 indices = 768
 
-    // Generate indices based on 9x17 grid layout (matching wowee.js)
+    // Generate indices based on 9x17 grid layout (matching original JS)
     // Each quad uses a center vertex with 4 surrounding vertices
     // Index offsets from center: -9, -8, +9, +8
 
@@ -345,4 +345,4 @@ int TerrainMeshGenerator::getVertexIndex(int x, int y) {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

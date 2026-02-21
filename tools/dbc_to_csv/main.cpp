@@ -25,7 +25,7 @@
 #include <set>
 #include <vector>
 
-using wowee::pipeline::DBCFile;
+using pwow::pipeline::DBCFile;
 
 namespace {
 

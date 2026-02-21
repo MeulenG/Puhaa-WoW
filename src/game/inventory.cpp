@@ -1,7 +1,7 @@
 #include "game/inventory.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 static const ItemSlot EMPTY_SLOT{};
@@ -323,4 +323,4 @@ const char* getEquipSlotName(EquipSlot slot) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

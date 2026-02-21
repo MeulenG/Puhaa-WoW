@@ -2,8 +2,9 @@
 
 #include <cstdint>
 #include <vector>
+#include <cstddef>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 /**
@@ -55,4 +56,4 @@ private:
 };
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

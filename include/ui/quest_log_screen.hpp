@@ -3,7 +3,7 @@
 #include "game/game_handler.hpp"
 #include <imgui.h>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 class QuestLogScreen {
 public:
@@ -18,4 +18,4 @@ private:
     int selectedIndex = -1;
 };
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

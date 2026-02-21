@@ -12,7 +12,7 @@
 // Forward declare StormLib handle
 typedef void* HANDLE;
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 /**
@@ -125,4 +125,4 @@ private:
 };
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

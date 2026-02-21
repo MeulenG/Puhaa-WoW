@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <array>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 // Client build and version information
@@ -135,4 +135,4 @@ public:
 };
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

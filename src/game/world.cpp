@@ -1,6 +1,6 @@
 #include "game/world.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 void World::update([[maybe_unused]] float deltaTime) {
@@ -12,4 +12,4 @@ void World::loadMap([[maybe_unused]] uint32_t mapId) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

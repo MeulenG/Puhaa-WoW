@@ -6,7 +6,7 @@
 #include <random>
 #include <cmath>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Weather::Weather() {
@@ -272,4 +272,4 @@ void Weather::cleanup() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -69,4 +69,4 @@ enum class PartyResult : uint32_t {
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

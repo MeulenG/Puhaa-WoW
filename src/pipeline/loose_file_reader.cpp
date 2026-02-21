@@ -3,7 +3,7 @@
 #include <fstream>
 #include <filesystem>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 std::vector<uint8_t> LooseFileReader::readFile(const std::string& filesystemPath) {
@@ -44,4 +44,4 @@ uint64_t LooseFileReader::getFileSize(const std::string& filesystemPath) {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 /**
@@ -246,4 +246,4 @@ public:
 };
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

@@ -80,7 +80,7 @@ std::vector<uint32_t> jsonUintArray(const std::string& json, const std::string& 
 
 } // namespace
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 std::string ExpansionProfile::versionString() const {
@@ -192,4 +192,4 @@ bool ExpansionRegistry::loadProfile(const std::string& jsonPath, const std::stri
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

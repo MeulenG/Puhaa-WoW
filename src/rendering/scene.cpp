@@ -2,7 +2,7 @@
 #include "rendering/mesh.hpp"
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 void Scene::addMesh(std::shared_ptr<Mesh> mesh) {
@@ -21,4 +21,4 @@ void Scene::clear() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

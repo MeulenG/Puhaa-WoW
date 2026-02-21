@@ -4,7 +4,7 @@
 #include <array>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 class Input {
@@ -54,4 +54,4 @@ private:
 };
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

@@ -12,7 +12,7 @@
 #include <random>
 #include <future>
 
-namespace wowee {
+namespace pwow {
 
 namespace pipeline {
     class AssetManager;
@@ -478,4 +478,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

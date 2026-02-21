@@ -36,7 +36,7 @@
 #include <fstream>
 #include <limits>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 namespace {
@@ -283,7 +283,7 @@ bool CharacterRenderer::initialize() {
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Diagnostics-only: cache lifetime is currently tied to renderer lifetime.
-    textureCacheBudgetBytes_ = envSizeMBOrDefault("WOWEE_CHARACTER_TEX_CACHE_MB", 2048) * 1024ull * 1024ull;
+    textureCacheBudgetBytes_ = envSizeMBOrDefault("PWOW_CHARACTER_TEX_CACHE_MB", 2048) * 1024ull * 1024ull;
 
     core::Logger::getInstance().info("Character renderer initialized");
     return true;
@@ -606,7 +606,7 @@ GLuint CharacterRenderer::compositeTextures(const std::vector<std::string>& laye
 
     // Debug: dump composite to /tmp for visual inspection
     {
-        std::string dumpPath = "/tmp/wowee_composite_debug_" +
+        std::string dumpPath = "/tmp/pwow_composite_debug_" +
             std::to_string(width) + "x" + std::to_string(height) + ".raw";
         std::ofstream dump(dumpPath, std::ios::binary);
         if (dump) {
@@ -2155,4 +2155,4 @@ void CharacterRenderer::dumpAnimations(uint32_t instanceId) const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

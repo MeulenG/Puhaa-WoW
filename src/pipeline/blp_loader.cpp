@@ -3,7 +3,7 @@
 #include <cstring>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 BLPImage BLPLoader::load(const std::vector<uint8_t>& blpData) {
@@ -429,4 +429,4 @@ const char* BLPLoader::getCompressionName(BLPCompression compression) {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

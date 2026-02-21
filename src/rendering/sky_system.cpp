@@ -7,7 +7,7 @@
 #include "rendering/camera.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 SkySystem::SkySystem() = default;
@@ -182,4 +182,4 @@ float SkySystem::getBlueChildPhase() const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

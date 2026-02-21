@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace audio {
 
@@ -58,8 +58,8 @@ private:
     bool swimMoving = false;
     ProcessHandle swimLoopPid = INVALID_PROCESS;
     ProcessHandle oneShotPid = INVALID_PROCESS;
-    std::string loopTempPath = platform::getTempFilePath("wowee_swim_loop.wav");
-    std::string oneShotTempPath = platform::getTempFilePath("wowee_activity.wav");
+    std::string loopTempPath = platform::getTempFilePath("pwow_swim_loop.wav");
+    std::string oneShotTempPath = platform::getTempFilePath("pwow_activity.wav");
     std::mt19937 rng;
 
     std::chrono::steady_clock::time_point lastJumpAt{};
@@ -84,4 +84,4 @@ private:
 };
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

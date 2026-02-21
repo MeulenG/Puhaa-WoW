@@ -6,7 +6,7 @@
 
 typedef unsigned int GLuint;
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class VideoPlayer {
@@ -48,4 +48,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

@@ -9,7 +9,7 @@
 
 #include "stb_image.h"
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 namespace {
@@ -74,8 +74,8 @@ void AssetManager::setupFileCacheBudget() {
     size_t recommendedBudget = memMonitor.getRecommendedCacheBudget();
     size_t dynamicBudget = (recommendedBudget * 3) / 4;
 
-    const size_t envFixedMB = parseEnvSizeMB("WOWEE_FILE_CACHE_MB");
-    const size_t envMaxMB = parseEnvSizeMB("WOWEE_FILE_CACHE_MAX_MB");
+    const size_t envFixedMB = parseEnvSizeMB("PWOW_FILE_CACHE_MB");
+    const size_t envMaxMB = parseEnvSizeMB("PWOW_FILE_CACHE_MAX_MB");
 
     const size_t minBudgetBytes = 256ull * 1024ull * 1024ull;
     const size_t defaultMaxBudgetBytes = 32768ull * 1024ull * 1024ull;
@@ -88,7 +88,7 @@ void AssetManager::setupFileCacheBudget() {
         if (fileCacheBudget < minBudgetBytes) {
             fileCacheBudget = minBudgetBytes;
         }
-        LOG_WARNING("Asset file cache fixed via WOWEE_FILE_CACHE_MB=", envFixedMB,
+        LOG_WARNING("Asset file cache fixed via PWOW_FILE_CACHE_MB=", envFixedMB,
                     " (effective ", fileCacheBudget / (1024 * 1024), " MB)");
     } else {
         fileCacheBudget = std::clamp(dynamicBudget, minBudgetBytes, maxBudgetBytes);
@@ -418,4 +418,4 @@ std::string AssetManager::normalizePath(const std::string& path) const {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

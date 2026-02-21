@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace wowee {
+namespace pwow {
 namespace tools {
 
 std::string PathMapper::toLower(const std::string& str) {
@@ -204,4 +204,4 @@ std::string PathMapper::mapPath(const std::string& wowPath) {
 }
 
 } // namespace tools
-} // namespace wowee
+} // namespace pwow

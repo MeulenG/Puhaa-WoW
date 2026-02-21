@@ -3,7 +3,7 @@
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 std::vector<uint8_t> Crypto::sha1(const std::vector<uint8_t>& data) {
@@ -42,4 +42,4 @@ std::vector<uint8_t> Crypto::hmacSHA1(const std::vector<uint8_t>& key,
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

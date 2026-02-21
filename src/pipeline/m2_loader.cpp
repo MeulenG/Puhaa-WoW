@@ -24,7 +24,7 @@
 #include <cstring>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 namespace {
@@ -1605,4 +1605,4 @@ void M2Loader::loadAnimFile(const std::vector<uint8_t>& m2Data,
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

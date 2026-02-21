@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <array>
 
-namespace wowee {
+namespace pwow {
 
 // Forward declarations
 namespace rendering { class Renderer; }
@@ -282,4 +282,4 @@ private:
 };
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

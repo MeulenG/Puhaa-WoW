@@ -11,7 +11,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 LoadingScreen::LoadingScreen() {
@@ -404,4 +404,4 @@ void LoadingScreen::render() {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

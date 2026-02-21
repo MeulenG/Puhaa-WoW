@@ -10,7 +10,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 namespace {
@@ -519,4 +519,4 @@ void AudioEngine::update(float deltaTime) {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 namespace {
@@ -448,4 +448,4 @@ void ActivitySoundManager::playWaterExit() {
 }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

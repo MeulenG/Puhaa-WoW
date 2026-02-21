@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 // Computes the LOGON_PROOF "CRC hash" / integrity hash for the legacy WoW login protocol.
@@ -32,4 +32,4 @@ bool computeIntegrityHashWin32WithExe(const std::array<uint8_t, 16>& checksumSal
                                       std::string& outError);
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

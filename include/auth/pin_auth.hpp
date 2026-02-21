@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 struct PinProof {
@@ -24,5 +24,5 @@ PinProof computePinProof(const std::string& pinDigits,
                          const std::array<uint8_t, 16>& serverSalt);
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow
 

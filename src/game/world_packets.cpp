@@ -11,7 +11,7 @@
 #include <iomanip>
 #include <zlib.h>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 network::Packet AuthSessionPacket::build(uint32_t build,
@@ -3984,4 +3984,4 @@ bool AuctionCommandResultParser::parse(network::Packet& packet, AuctionCommandRe
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

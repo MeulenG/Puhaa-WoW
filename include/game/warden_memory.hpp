@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -48,4 +48,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

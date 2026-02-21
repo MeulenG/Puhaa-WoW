@@ -10,7 +10,7 @@
 // Forward declare SDL_Event
 union SDL_Event;
 
-namespace wowee {
+namespace pwow {
 
 // Forward declarations
 namespace core { class Window; enum class AppState; }
@@ -84,4 +84,4 @@ private:
 };
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

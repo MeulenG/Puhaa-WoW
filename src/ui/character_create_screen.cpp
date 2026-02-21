@@ -7,7 +7,7 @@
 #include <cstring>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace ui {
 
 // Full WotLK race/class lists (used as defaults when no expansion constraints set)
@@ -572,4 +572,4 @@ void CharacterCreateScreen::render(game::GameHandler& /*gameHandler*/) {
 }
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

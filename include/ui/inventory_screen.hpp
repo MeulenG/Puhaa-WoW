@@ -10,7 +10,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace rendering { class CharacterPreview; class CharacterRenderer; }
 namespace game { class GameHandler; }
@@ -165,4 +165,4 @@ public:
 };
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

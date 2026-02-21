@@ -11,7 +11,7 @@ Primary target today is **WotLK 3.3.5a**, with active work to broaden compatibil
 - **Compatibility**: **Vanilla (Classic) + TBC + WotLK** via expansion profiles and opcode/parser variants (`src/game/packet_parsers_classic.cpp`, `src/game/packet_parsers_tbc.cpp`). Turtle WoW (1.17) is also supported.
 - **Primary target**: WoW **WotLK 3.3.5a (build 12340)** online client, tested against AzerothCore/TrinityCore variants and Turtle WoW.
 - **Current focus**: protocol correctness across server variants, visual accuracy (M2/WMO edge cases, equipment textures), and multi-expansion coverage.
-- **Warden**: Full module execution via Unicorn Engine CPU emulation. Decrypts (RC4→RSA→zlib), parses and relocates the PE module, executes via x86 emulation with Windows API interception. Module cache at `~/.local/share/wowee/warden_cache/`.
+- **Warden**: Full module execution via Unicorn Engine CPU emulation. Decrypts (RC4→RSA→zlib), parses and relocates the PE module, executes via x86 emulation with Windows API interception. Module cache at `~/.local/share/puhaa-wow/warden_cache/`.
 
 ## Features
 
@@ -66,12 +66,6 @@ sudo apt install libsdl2-dev libglew-dev libglm-dev \
                  libunicorn-dev \          # for Warden module execution
                  libstorm-dev             # for asset_extract
 
-# Fedora
-sudo dnf install SDL2-devel glew-devel glm-devel \
-                 openssl-devel cmake gcc-c++ \
-                 unicorn-devel \          # for Warden module execution
-                 StormLib-devel           # for asset_extract
-
 # Arch
 sudo pacman -S sdl2 glew glm openssl cmake base-devel \
                  unicorn \               # for Warden module execution
@@ -115,19 +109,7 @@ export WOW_DATA_PATH=/path/to/extracted/Data
 
 ### Compile & Run
 
-```bash
-git clone https://github.com/MeulenG/Puhaa-WoW.git
-cd Puhaa-WoW
-
-# Get ImGui (required)
-git clone https://github.com/ocornut/imgui.git extern/imgui
-
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-
-./bin/wowee
-```
+Look at `BUILD_INSTRUCTIONS.md` for exact instructions on how to build the project.
 
 ## Controls
 

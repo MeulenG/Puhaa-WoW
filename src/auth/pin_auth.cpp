@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 static std::array<uint8_t, 16> randomSalt16() {
@@ -105,4 +105,4 @@ PinProof computePinProof(const std::string& pinDigits,
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

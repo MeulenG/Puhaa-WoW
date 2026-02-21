@@ -1,7 +1,7 @@
 #include "game/opcodes.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 // Opcodes are defined in header
 } // namespace game
-} // namespace wowee
+} // namespace pwow

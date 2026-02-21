@@ -3,7 +3,7 @@
 #include "pipeline/asset_manager.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace audio {
 
 bool UiSoundManager::initialize(pipeline::AssetManager* assets) {
@@ -216,4 +216,4 @@ void UiSoundManager::playTargetSelect() { playSound(selectTargetSounds_); }
 void UiSoundManager::playTargetDeselect() { playSound(deselectTargetSounds_); }
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

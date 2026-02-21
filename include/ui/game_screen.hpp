@@ -13,7 +13,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline { class AssetManager; }
 namespace ui {
 
@@ -289,4 +289,4 @@ public:
 };
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

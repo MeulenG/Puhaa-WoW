@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <map>
 
-namespace wowee { namespace ui {
+namespace pwow { namespace ui {
 
 void SpellbookScreen::loadSpellDBC(pipeline::AssetManager* assetManager) {
     if (dbcLoadAttempted) return;
@@ -434,4 +434,4 @@ void SpellbookScreen::render(game::GameHandler& gameHandler, pipeline::AssetMana
     }
 }
 
-}} // namespace wowee::ui
+}} // namespace pwow::ui

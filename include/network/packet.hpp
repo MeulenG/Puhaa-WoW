@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace network {
 
 class Packet {
@@ -41,4 +41,4 @@ private:
 };
 
 } // namespace network
-} // namespace wowee
+} // namespace pwow

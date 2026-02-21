@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <optional>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -72,4 +72,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

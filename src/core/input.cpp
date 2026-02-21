@@ -1,6 +1,6 @@
 #include "core/input.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace core {
 
 Input& Input::getInstance() {
@@ -78,4 +78,4 @@ void Input::setMouseLocked(bool locked) {
 }
 
 } // namespace core
-} // namespace wowee
+} // namespace pwow

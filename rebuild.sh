@@ -1,11 +1,11 @@
 #!/bin/bash
-# Wowee Clean Rebuild Script - Removes all build artifacts and rebuilds from scratch
+# Puhaa-WoW Clean Rebuild Script - Removes all build artifacts and rebuilds from scratch
 
 set -e  # Exit on error
 
 cd "$(dirname "$0")"
 
-echo "Clean rebuilding wowee..."
+echo "Clean rebuilding puhaa-wow..."
 
 # Remove build directory completely
 if [ -d "build" ]; then
@@ -35,5 +35,5 @@ fi
 cd ..
 
 echo ""
-echo "Clean build complete! Binary: build/bin/wowee"
-echo "Run with: cd build/bin && ./wowee"
+echo "Clean build complete! Binary: build/bin/puhaa-wow"
+echo "Run with: cd build/bin && ./puhaa-wow"

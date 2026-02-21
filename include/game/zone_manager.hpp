@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 struct ZoneInfo {
@@ -36,4 +36,4 @@ private:
 };
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

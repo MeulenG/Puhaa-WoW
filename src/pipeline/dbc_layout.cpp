@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 
 static const DBCLayout* g_activeDBCLayout = nullptr;
@@ -228,4 +228,4 @@ const DBCFieldMap* DBCLayout::getLayout(const std::string& dbcName) const {
 }
 
 } // namespace pipeline
-} // namespace wowee
+} // namespace pwow

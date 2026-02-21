@@ -5,11 +5,11 @@
 #include <cstdint>
 #include <string>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 // SRP6a implementation for World of Warcraft authentication
-// Based on the original wowee JavaScript implementation
+// Based on the original original JavaScript implementation
 class SRP {
 public:
     SRP();
@@ -87,4 +87,4 @@ private:
 };
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

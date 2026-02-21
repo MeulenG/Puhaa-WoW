@@ -1,6 +1,6 @@
 #include "rendering/mesh.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Mesh::~Mesh() {
@@ -53,4 +53,4 @@ void Mesh::draw() const {
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

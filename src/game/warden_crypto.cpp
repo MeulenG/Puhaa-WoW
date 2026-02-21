@@ -4,7 +4,7 @@
 #include <cstring>
 #include <algorithm>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 WardenCrypto::WardenCrypto()
@@ -164,4 +164,4 @@ void WardenCrypto::processRC4(const uint8_t* input, uint8_t* output, size_t leng
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

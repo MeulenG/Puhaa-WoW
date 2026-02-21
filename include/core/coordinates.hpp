@@ -5,7 +5,7 @@
 #include <cmath>
 #include <utility>
 
-namespace wowee::core::coords {
+namespace pwow::core::coords {
 
 inline constexpr float TILE_SIZE = 533.33333f;
 inline constexpr float ZEROPOINT = 32.0f * TILE_SIZE;
@@ -122,4 +122,4 @@ inline std::pair<int, int> canonicalToTile(float wowX, float wowY) {
     return {tileX, tileY};
 }
 
-} // namespace wowee::core::coords
+} // namespace pwow::core::coords

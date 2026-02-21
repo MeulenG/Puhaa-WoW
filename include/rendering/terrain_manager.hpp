@@ -20,7 +20,7 @@
 #include <deque>
 #include <glm/glm.hpp>
 
-namespace wowee {
+namespace pwow {
 
 namespace pipeline { class AssetManager; }
 namespace audio { class AmbientSoundManager; }
@@ -346,4 +346,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

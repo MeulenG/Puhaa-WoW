@@ -4,7 +4,7 @@
 #include <string>
 #include <array>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 enum class ItemQuality : uint8_t {
@@ -122,4 +122,4 @@ const char* getQualityName(ItemQuality quality);
 const char* getEquipSlotName(EquipSlot slot);
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

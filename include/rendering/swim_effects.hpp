@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 class Camera;
@@ -56,4 +56,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

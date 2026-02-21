@@ -5,7 +5,7 @@
 #include <string>
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace pipeline {
 class AssetManager;
 }
@@ -122,4 +122,4 @@ private:
 };
 
 } // namespace audio
-} // namespace wowee
+} // namespace pwow

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 Shader::~Shader() {
@@ -137,4 +137,4 @@ void Shader::setUniformMatrixArray(const std::string& name, const glm::mat4* mat
 }
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

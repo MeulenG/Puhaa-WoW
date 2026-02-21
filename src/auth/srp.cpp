@@ -6,7 +6,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 SRP::SRP() : k(K_VALUE) {
@@ -310,4 +310,4 @@ std::vector<uint8_t> SRP::getSessionKey() const {
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

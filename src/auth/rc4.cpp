@@ -2,7 +2,7 @@
 #include "core/logger.hpp"
 #include <cstring>
 
-namespace wowee {
+namespace pwow {
 namespace auth {
 
 RC4::RC4() : x(0), y(0) {
@@ -72,4 +72,4 @@ void RC4::drop(size_t count) {
 }
 
 } // namespace auth
-} // namespace wowee
+} // namespace pwow

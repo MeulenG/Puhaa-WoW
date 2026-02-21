@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <array>
 
-namespace wowee {
+namespace pwow {
 namespace rendering {
 
 /**
@@ -85,4 +85,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace wowee
+} // namespace pwow

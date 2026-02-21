@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 static inline uint32_t readLE32(const std::vector<uint8_t>& data, size_t offset) {
@@ -141,7 +141,7 @@ bool WardenMemory::readMemory(uint32_t va, uint8_t length, uint8_t* outBuf) cons
 
 std::string WardenMemory::findWowExe() const {
     std::vector<std::string> candidateDirs;
-    if (const char* env = std::getenv("WOWEE_INTEGRITY_DIR")) {
+    if (const char* env = std::getenv("PWOW_INTEGRITY_DIR")) {
         if (env && *env) candidateDirs.push_back(env);
     }
     candidateDirs.push_back("Data/misc");
@@ -204,4 +204,4 @@ bool WardenMemory::loadFromFile(const std::string& exePath) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

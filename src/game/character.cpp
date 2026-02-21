@@ -1,6 +1,6 @@
 #include "game/character.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 bool isValidRaceClassCombo(Race race, Class cls) {
@@ -151,4 +151,4 @@ std::string getPlayerModelPath(const Character& character) {
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 /**
@@ -178,4 +178,4 @@ std::string getPlayerModelPath(Race race, Gender gender, bool useFemaleModel = f
 std::string getPlayerModelPath(const Character& character);
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

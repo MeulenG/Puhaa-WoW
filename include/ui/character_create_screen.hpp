@@ -9,7 +9,7 @@
 #include <memory>
 #include <cstdint>
 
-namespace wowee {
+namespace pwow {
 namespace game { class GameHandler; }
 namespace pipeline { class AssetManager; }
 namespace rendering { class CharacterPreview; }
@@ -82,4 +82,4 @@ private:
 };
 
 } // namespace ui
-} // namespace wowee
+} // namespace pwow

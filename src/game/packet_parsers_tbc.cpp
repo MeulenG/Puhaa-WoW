@@ -1,7 +1,7 @@
 #include "game/packet_parsers.hpp"
 #include "core/logger.hpp"
 
-namespace wowee {
+namespace pwow {
 namespace game {
 
 // ============================================================================
@@ -534,4 +534,4 @@ bool TbcPacketParsers::parseNameQueryResponse(network::Packet& packet, NameQuery
 }
 
 } // namespace game
-} // namespace wowee
+} // namespace pwow

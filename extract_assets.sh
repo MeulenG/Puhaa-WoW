@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Usage: ./extract_assets.sh /path/to/WoW/Data [expansion]
 #
-# Extracts WoW MPQ archives into the Data/ directory for use with wowee.
+# Extracts WoW MPQ archives into the Data/ directory for use with puhaa-wow.
 #
 # Arguments:
 #   $1  Path to WoW's Data directory (containing .MPQ files)
@@ -103,4 +103,4 @@ fi
 
 echo ""
 echo "Done! Assets extracted to $OUTPUT_DIR"
-echo "You can now run wowee."
+echo "You can now run puhaa-wow."
