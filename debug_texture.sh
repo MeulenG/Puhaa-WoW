@@ -8,7 +8,7 @@ H=${2:-1024}
 
 echo "Converting debug textures (${W}x${H})..."
 
-for raw in /tmp/wowee_composite_debug.raw /tmp/wowee_equip_composite_debug.raw; do
+for raw in /tmp/pwow_composite_debug.raw /tmp/pwow_equip_composite_debug.raw; do
     if [ -f "$raw" ]; then
         png="${raw%.raw}.png"
         # Try ImageMagick first, fall back to ffmpeg
