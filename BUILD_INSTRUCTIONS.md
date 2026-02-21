@@ -13,7 +13,7 @@ sudo apt install -y \
   libsdl2-dev libglew-dev libglm-dev \
   libssl-dev zlib1g-dev \
   libavformat-dev libavcodec-dev libswscale-dev libavutil-dev \
-  libstorm-dev libunicorn-dev
+  libstorm-dev libunicorn-dev libbz2-dev
 ```
 
 ### Arch
